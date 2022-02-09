@@ -2,6 +2,20 @@
 """
 Created on Sun Feb  6 19:24:50 2022
 
+To do:
+    
+- Test on moon data 
+    -> understand stability of training flows
+    -> reproduce pyMC3 tutorial to some degree (although reverse KL used there)
+
+- Develop TestFlow modules for better handling of forward and logdet
+    -> input multiple layer instructions at once for easier coding /iteration
+    
+- Understand how expressivity of planar flows works
+- Implement low dim noise model
+
+
+
 @author: William Bankes
 """
 
@@ -12,8 +26,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from utils import plot_density_contours
-from transforms import AffineTransform
+from transforms import AffineTransform, PlanarTransform
 from normalising_flows import NormalisingFlow
+
+from sklearn.datasets import make_moons
 
 
 #%%
@@ -23,17 +39,31 @@ class TestFlow(nn.Module):
         super(TestFlow, self).__init__()
         
         self.dims = dims
-        self.flow1 = AffineTransform(dims)
+        #self.flow1 = AffineTransform(dims)
+        self.flow1 = PlanarTransform(dims)
+        self.flow2 = PlanarTransform(dims)
+        self.flow3 = PlanarTransform(dims)
+        self.flow4 = PlanarTransform(dims)
+        self.flow5 = PlanarTransform(dims)
+
         
     def forward(self, x):
         
         z, log_detJ = self.flow1(x)
+        z, log_detJ2 = self.flow2(z)
+        z, log_detJ3 = self.flow3(z)
+        z, log_detJ4 = self.flow4(z)
+        z, log_detJ5 = self.flow5(z)
                 
-        return z, log_detJ 
+        return z, log_detJ + log_detJ2 + log_detJ3 + log_detJ4 + log_detJ5
+    
+class TestFlow2(nn.Module):
+    
+    pass
 
 
-
-#Test:    
+#%%
+#Test 1:    
 target_mean = torch.ones([1,2])
 target_sigma = torch.eye(2) * 4
 target_dist = dist.MultivariateNormal(loc=target_mean,
@@ -50,7 +80,6 @@ z_sigma = torch.eye(2)
 G = dist.MultivariateNormal(loc=z_mean, covariance_matrix=z_sigma)
     
 nf = NormalisingFlow(2, TestFlow, G)
-
 out = nf.forward_KL(data, 5000)
 
 # Plot losses
@@ -63,5 +92,33 @@ plot_density_contours(lambda x: np.exp(nf.density_estimation_forward(x)) , 'back
 plot_density_contours(lambda x: target_dist.log_prob(x).exp(), 'target')
 
 #print optimised params and actual:
-a = nf.transform.flow1.alpha
-print('Alpha param:', torch.linalg.inv(a@a.T + 0.01*torch.eye(2)))
+#a = nf.transform.flow1.alpha
+#print('Alpha param:', torch.linalg.inv(a@a.T + 0.01*torch.eye(2)))
+
+#%%
+#Test 2:
+    
+#Generate moon data:
+moon_data, label = make_moons(n_samples=1000, noise=0.1)
+plt.scatter(moon_data[:, 0], moon_data[:, 1])
+plt.ylim([-5, 5])
+plt.xlim([-5, 5])
+    
+torch_data = torch.tensor(moon_data, dtype=torch.float32)
+
+nf2 = NormalisingFlow(2, TestFlow, G)
+out = nf2.forward_KL(torch_data, 5000)
+
+plot_density_contours(lambda x: np.exp(nf2.density_estimation_forward(x)), 'approx')
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+

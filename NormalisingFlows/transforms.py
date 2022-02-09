@@ -18,7 +18,7 @@ class Transform(nn.Module):
     This should be a layer not an end transform...
     """
     def __init__(self):
-        super(Transform, self).__init__()
+        super().__init__()
     
     def log_det_jac(self, x):
         
@@ -59,22 +59,32 @@ class AffineTransform(Transform):
 
 class PlanarTransform(Transform):
     
-    def __init__(self, dims, cnst=0.01):
+    def __init__(self, dims):
         
         super().__init__()
         
         #define the various weight parameters:
-        self.w = nn.parameter.Parameter(torch.ones([dims]).unsqueeze(0))
+        self.w = nn.parameter.Parameter(torch.ones([dims]).unsqueeze(-1))
         self.b = nn.parameter.Parameter(torch.tensor(1.))
-        self.v = nn.parameter.Parameter(torch.ones([dims]).unsqueeze(0))
+        self.v = nn.parameter.Parameter(torch.ones([dims]).unsqueeze(-1))
         
-        
-        
-        
-        
-        
-
+        self.sigma = torch.nn.ReLU()
     
+        self.dims = dims
+    
+    def log_det_jac(self, x):
+        
+        linear =  1 - torch.tanh(x @ self.w + self.b).pow(2)
+        vTw = (self.w.T @ self.v)
+        det_jac = 1 + linear*vTw    
+    
+        return det_jac.log()
+    
+    def forward(self, x):  
+        
+        return x + self.v.T * torch.tanh(x @ self.w + self.b), self.log_det_jac(x)
+
+
 
 if __name__ == '__main__':
     #Create tests for new layers

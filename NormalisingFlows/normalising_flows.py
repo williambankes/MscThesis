@@ -32,7 +32,7 @@ class NormalisingFlow():
             u, log_detJ = self.transform(data)
             
             #calc log_prob_u under base dist:
-            log_probu = self.base_dist.log_prob(u)
+            log_probu = self.base_dist.log_prob(u)            
             kl_div = -1 * (log_probu + log_detJ).mean()
             
             #Optimise:
@@ -40,12 +40,13 @@ class NormalisingFlow():
             kl_div.backward()
             optim.step()
             
-            losses.append(kl_div.detach().numpy())           
+            losses.append(kl_div.detach().numpy())
+            if epoch % 10 == 0:
+                print('NF forward KL divergence: {}'.format(losses[-1]))
             
         return losses
     
     def density_estimation_forward(self, x):
         
         z, logdet = self.transform(x)
-               
-        return (self.base_dist.log_prob(z) + logdet).detach().numpy()
+        return (self.base_dist.log_prob(z).unsqueeze(-1) + logdet).detach().numpy()
