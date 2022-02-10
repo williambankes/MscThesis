@@ -12,7 +12,7 @@ class NormalisingFlow():
     
     def __init__(self, dims, transform, base_dist):
         
-        self.transform = transform(dims)
+        self.transform = transform
         self.dims = dims
         
         self.base_dist = base_dist
@@ -42,7 +42,8 @@ class NormalisingFlow():
             
             losses.append(kl_div.detach().numpy())
             if epoch % 10 == 0:
-                print('NF forward KL divergence: {}'.format(losses[-1]))
+                print('NF forward KL divergence, iter:{} KL div:{}'.\
+                      format(epoch, losses[-1]))
             
         return losses
     

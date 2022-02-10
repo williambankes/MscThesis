@@ -29,7 +29,7 @@ from utils import plot_density_contours
 from transforms import AffineTransform, PlanarTransform
 from normalising_flows import NormalisingFlow
 
-from sklearn.datasets import make_moons
+from sklearn.datasets import make_moons, make_classification
 
 
 #%%
@@ -49,7 +49,7 @@ class TestFlow(nn.Module):
         
     def forward(self, x):
         
-        z, log_detJ = self.flow1(x)
+        z, log_detJ = self.flow1(x)        
         z, log_detJ2 = self.flow2(z)
         z, log_detJ3 = self.flow3(z)
         z, log_detJ4 = self.flow4(z)
@@ -59,7 +59,27 @@ class TestFlow(nn.Module):
     
 class TestFlow2(nn.Module):
     
-    pass
+    def __init__(self, dims, Transform, num):
+        
+        super().__init__()
+        
+        self.dims = dims
+        self.num = num
+        self.flows = nn.ModuleList()
+        
+        for i in range(num):
+            self.flows.append(Transform(dims))
+
+    def forward(self, z):
+        
+        logdet = torch.zeros([z.shape[0], 1])
+        
+        for i in range(self.num):
+            z, logdetT = self.flows[i](z)
+            
+            logdet += logdetT
+            
+        return z, logdet
 
 
 #%%
@@ -79,7 +99,7 @@ z_mean = torch.zeros(2)
 z_sigma = torch.eye(2)
 G = dist.MultivariateNormal(loc=z_mean, covariance_matrix=z_sigma)
     
-nf = NormalisingFlow(2, TestFlow, G)
+nf = NormalisingFlow(2, TestFlow(2), G)
 out = nf.forward_KL(data, 5000)
 
 # Plot losses
@@ -99,10 +119,13 @@ plot_density_contours(lambda x: target_dist.log_prob(x).exp(), 'target')
 #Test 2:
     
 #Generate moon data:
-moon_data, label = make_moons(n_samples=1000, noise=0.1)
+moon_data, label = make_moons(n_samples=1000, noise=0.01)
+moon_data = moon_data * 2
 plt.scatter(moon_data[:, 0], moon_data[:, 1])
 plt.ylim([-5, 5])
 plt.xlim([-5, 5])
+
+#%%
     
 torch_data = torch.tensor(moon_data, dtype=torch.float32)
 
@@ -111,7 +134,28 @@ out = nf2.forward_KL(torch_data, 5000)
 
 plot_density_contours(lambda x: np.exp(nf2.density_estimation_forward(x)), 'approx')
     
-    
+#%%
+
+#Test 3: Testflow 2 -> 32 planar flows...
+
+class_data, label = make_classification(n_samples=1000, n_features=2,
+                                        n_informative=2, n_redundant=0, 
+                                        n_repeated=0, n_classes=2)
+plt.scatter(class_data[:,0], class_data[:, 1])
+plt.ylim([-5, 5])
+plt.xlim([-5, 5])
+
+class_torch = torch.tensor(class_data)
+
+#%%
+
+
+
+tf2 = TestFlow2(dims=2, Transform=PlanarTransform, num=32)
+nf3 = NormalisingFlow(2, tf2, G)
+out = nf3.forward_KL(torch_data, 5000)
+
+plot_density_contours(lambda x: np.exp(nf3.density_estimation_forward(x)), '32 planar')
     
     
     
