@@ -85,6 +85,45 @@ class PlanarTransform(Transform):
         return x + self.v.T * torch.tanh(x @ self.w + self.b), self.log_det_jac(x)
 
 
+class PlanarTransform2(Transform):
+    
+    def __init__(self, dims):
+        
+        super().__init__()
+        
+        #define the various weight parameters:
+        self.w = nn.parameter.Parameter(torch.ones([dims]).unsqueeze(-1))
+        self.b = nn.parameter.Parameter(torch.tensor(1.))
+        self.v = nn.parameter.Parameter(torch.ones([dims]).unsqueeze(-1))
+        
+        self.sigma = torch.nn.ReLU()
+    
+        self.dims = dims
+    
+    def softplus(self, x):
+        return (1 + x.exp()).log()
+    
+    def log_det_jac(self, x):
+        
+        #parameterised v:
+        v = self.v + (-1 + self.softplus(self.w.T@self.v) - (self.w.T @ self.v))\
+            *(self.w/torch.norm(self.w, p=2).pow(2))
+        
+        
+        linear =  1 - torch.tanh(x @ self.w + self.b).pow(2)
+        vTw = (self.w.T @ v)
+        det_jac = torch.abs(1 + linear*vTw)    
+    
+        return det_jac.log()
+    
+    def forward(self, x):  
+        
+        v = self.v + (self.softplus(self.w.T@self.v) - (self.w.T @ self.v))\
+            *(self.w/torch.norm(self.w, p=2).pow(2))
+        
+        return x + v.T * torch.tanh(x @ self.w + self.b), self.log_det_jac(x)
+
+
 
 if __name__ == '__main__':
     #Create tests for new layers
