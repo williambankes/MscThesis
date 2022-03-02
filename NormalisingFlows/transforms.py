@@ -8,6 +8,7 @@ Created on Sun Feb  6 19:23:25 2022
 import torch
 import torch.nn as nn
 import torch.distributions as dist
+import torch.nn.functional as F
 
 
 class Transform(nn.Module):
@@ -56,73 +57,54 @@ class AffineTransform(Transform):
                 
         return x @ A + self.beta, torch.det(A).log()
     
-
 class PlanarTransform(Transform):
     
-    def __init__(self, dims):
-        
-        super().__init__()
-        
-        #define the various weight parameters:
-        self.w = nn.parameter.Parameter(torch.ones([dims]).unsqueeze(-1))
-        self.b = nn.parameter.Parameter(torch.tensor(1.))
-        self.v = nn.parameter.Parameter(torch.ones([dims]).unsqueeze(-1))
-        
-        self.sigma = torch.nn.ReLU()
-    
-        self.dims = dims
-    
-    def log_det_jac(self, x):
-        
-        linear =  1 - torch.tanh(x @ self.w + self.b).pow(2)
-        vTw = (self.w.T @ self.v)
-        det_jac = 1 + linear*vTw    
-    
-        return det_jac.log()
-    
-    def forward(self, x):  
-        
-        return x + self.v.T * torch.tanh(x @ self.w + self.b), self.log_det_jac(x)
-
-
-class PlanarTransform2(Transform):
+    """
+    Questions:
+        - if tf.tensordot(self.w, self.u, 1) <= -1 -> can we do this like this?
+        - Is the re-param the squared norm or norm?
+    """
     
     def __init__(self, dims):
         
         super().__init__()
         
-        #define the various weight parameters:
         self.w = nn.parameter.Parameter(torch.ones([dims]).unsqueeze(-1))
         self.b = nn.parameter.Parameter(torch.tensor(1.))
-        self.v = nn.parameter.Parameter(torch.ones([dims]).unsqueeze(-1))
+        self.v = nn.parameter.Parameter(torch.ones([dims]).unsqueeze(-1))   
+    
+    def _h(self, x):
+        return torch.tanh(x)
+    
+    def _h_prime(self, x):
+        return 1 - torch.tanh(x).pow(2)
+    
+    def _v_prime(self):
         
-        self.sigma = torch.nn.ReLU()
+        wTv = self.w.T @ self.v
+        m = F.softplus(wTv)
+        update = (m - wTv)*(self.w/torch.norm(self.w, p=2)) #is it 2 norm or square?
+        
+        return self.v + update
     
-        self.dims = dims
+    def _forward_pass(self, x):
+        
+        linear = x @ self.w + self.b
+        update = self._v_prime() * self._h(linear)
+                
+        return x + update
     
-    def softplus(self, x):
-        return (1 + x.exp()).log()
+    def forward(self, x):
+        
+        return self._forward_pass(x), self.log_det_jac(x)
     
     def log_det_jac(self, x):
         
-        #parameterised v:
-        v = self.v + (-1 + self.softplus(self.w.T@self.v) - (self.w.T @ self.v))\
-            *(self.w/torch.norm(self.w, p=2).pow(2))
-        
-        
-        linear =  1 - torch.tanh(x @ self.w + self.b).pow(2)
-        vTw = (self.w.T @ v)
-        det_jac = torch.abs(1 + linear*vTw)    
-    
+        linear = x @ self.w + self.b
+        jac = 1. + self._h_prime(linear) * (self.v.T @ self.w)
+        det_jac = torch.abs(jac)
         return det_jac.log()
-    
-    def forward(self, x):  
-        
-        v = self.v + (self.softplus(self.w.T@self.v) - (self.w.T @ self.v))\
-            *(self.w/torch.norm(self.w, p=2).pow(2))
-        
-        return x + v.T * torch.tanh(x @ self.w + self.b), self.log_det_jac(x)
-
+                
 
 
 if __name__ == '__main__':
