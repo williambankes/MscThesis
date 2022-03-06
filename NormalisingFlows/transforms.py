@@ -83,7 +83,7 @@ class PlanarTransform(Transform):
         
         wTv = self.w.T @ self.v
         m = F.softplus(wTv)
-        update = (m - wTv)*(self.w/torch.norm(self.w, p=2)) #is it 2 norm or square?
+        update = (m - wTv)*(self.w/torch.norm(self.w, p=2).pow(2)) #is it 2 norm or square?
         
         return self.v + update
     
@@ -101,7 +101,7 @@ class PlanarTransform(Transform):
     def log_det_jac(self, x):
         
         linear = x @ self.w + self.b
-        jac = 1. + self._h_prime(linear) * (self.v.T @ self.w)
+        jac = 1. + self._h_prime(linear) * (self._v_prime().T @ self.w)
         det_jac = torch.abs(jac)
         return det_jac.log()
                 
