@@ -90,7 +90,7 @@ class PlanarTransform(Transform):
     def _forward_pass(self, x):
         
         linear = x @ self.w + self.b
-        update = self._v_prime() * self._h(linear)
+        update = self._h(linear) * self._v_prime().T
                 
         return x + update
     
