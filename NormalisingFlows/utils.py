@@ -15,7 +15,7 @@ def plot_density_contours(dense_func, title, colour='Blues'):
     fig, axs = plt.subplots(figsize=(7,7))
        
     #create grid:    
-    XX, YY = np.meshgrid(np.linspace(-5, 5, 101), np.linspace(-5, 5, 100))
+    XX, YY = np.meshgrid(np.linspace(-5, 5, 100), np.linspace(-5, 5, 100))
 
     #Get input from density eval
     py = dense_func(torch.FloatTensor(np.stack((XX.ravel(), YY.ravel())).T))
@@ -28,17 +28,20 @@ def plot_density_contours(dense_func, title, colour='Blues'):
     #fig.colorbar(con, ax=axs)
     axs.set_title(title)
     
-def plot_density_image(dense_func, title, colour='Blues'):
+def plot_density_image(dense_func, title, cmap='Blues'):
     
     fig, axs = plt.subplots(figsize=(7,7))
        
     #create grid:    
-    XX, YY = np.meshgrid(np.linspace(-5, 5, 101), np.linspace(-5, 5, 100))
+    XX, YY = np.meshgrid(np.linspace(-5, 5, 100), np.linspace(-5, 5, 100))
 
     #Get input from density eval
     py = dense_func(torch.FloatTensor(np.stack((XX.ravel(), YY.ravel())).T))
 
     #Reshape into 2d output
     ZZ = py.reshape(XX.shape)
+       
+    #ZZ = ZZ.numpy()
+            
+    axs.imshow(ZZ[::-1], cmap=cmap)
         
-    axs.imshow(ZZ)

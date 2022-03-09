@@ -69,29 +69,41 @@ class PlanarTransform(Transform):
         
         super().__init__()
         
+        """
         self.w = nn.parameter.Parameter(torch.ones([dims]).unsqueeze(-1))
-        self.b = nn.parameter.Parameter(torch.tensor(1.))
-        self.v = nn.parameter.Parameter(torch.ones([dims]).unsqueeze(-1))   
+        self.b = nn.parameter.Parameter(torch.tensor(0.))
+        self.v = nn.parameter.Parameter(torch.ones([dims]).unsqueeze(-1))
+        """
+        self.w = nn.parameter.Parameter(torch.rand([dims, 1]) * 2 - 1)
+        self.b = nn.parameter.Parameter(torch.tensor(0.))
+        self.v = nn.parameter.Parameter(torch.rand([dims, 1]) * 2 - 1)
     
     def _h(self, x):
         return torch.tanh(x)
     
     def _h_prime(self, x):
-        return 1 - torch.tanh(x).pow(2)
+        return 1. - torch.tanh(x).pow(2)
     
     def _v_prime(self):
-        
+                
         wTv = self.w.T @ self.v
-        m = F.softplus(wTv)
-        update = (m - wTv)*(self.w/torch.norm(self.w, p=2).pow(2)) #is it 2 norm or square?
         
-        return self.v + update
+        if wTv <= -1:
+        
+            m = -1. + F.softplus(wTv)
+            update = (m - wTv)*(self.w/torch.norm(self.w, p=2))
+        
+            return self.v + update
+    
+        else:
+            
+            return self.v
     
     def _forward_pass(self, x):
         
         linear = x @ self.w + self.b
         update = self._h(linear) * self._v_prime().T
-                
+                        
         return x + update
     
     def forward(self, x):
@@ -101,9 +113,9 @@ class PlanarTransform(Transform):
     def log_det_jac(self, x):
         
         linear = x @ self.w + self.b
-        jac = 1. + self._h_prime(linear) * (self._v_prime().T @ self.w)
+        jac = 1. + self._h_prime(linear) * (self.w.T @ self._v_prime())
         det_jac = torch.abs(jac)
-        return det_jac.log()
+        return det_jac.log().reshape(-1)
                 
 
 

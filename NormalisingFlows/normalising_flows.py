@@ -19,7 +19,6 @@ class NormalisingFlow():
         self.dims = dims
         
         self.base_dist = base_dist
-        
         #ensure dimensionality of base_dist is correct:
             
             
@@ -59,9 +58,9 @@ class NormalisingFlow():
     def reverse_sample(self, n_samples):
         
         samples = self.base_dist.sample((n_samples,))
-        x, _ = self.transform(samples)
+        x, log_det_J = self.transform(samples)
     
-        return x.detach().numpy()
+        return x.detach().numpy(), self.base_dist.log_prob(samples), log_det_J
     
     def forward_KL(self, data, epochs):
         
@@ -69,10 +68,9 @@ class NormalisingFlow():
         forward_KL: Applies equation (13) from [https://arxiv.org/pdf/1912.02762.pdf].
         Takes samples from our unknown distribution and applies 
         
-        """
-        
+        """        
                
-        optim = torch.optim.Adam(self.transform.parameters()) 
+        optim = torch.optim.Adam(self.transform.parameters(), lr=0.0005) 
         
         losses = list()
         
@@ -81,10 +79,10 @@ class NormalisingFlow():
             #Define the forward KL div:
             u, log_detJ = self.transform(data)
             
-            #calc log_prob_u under base dist:
+            #calc log_prob_u under base dist:                
             log_probu = self.base_dist.log_prob(u)            
             kl_div = -1 * (log_probu + log_detJ).mean()
-            
+                                      
             #Optimise:
             optim.zero_grad()
             kl_div.backward()
@@ -101,8 +99,7 @@ class NormalisingFlow():
     def density_estimation_forward(self, x):
         
         z, logdet = self.transform(x)
-        return (self.base_dist.log_prob(z).unsqueeze(-1) + logdet).detach().numpy()
-    
+        return (self.base_dist.log_prob(z) + logdet).detach().numpy()
     
     
 class CompositeFlow(nn.Module):
@@ -120,7 +117,7 @@ class CompositeFlow(nn.Module):
 
     def forward(self, z):
         
-        logdet = torch.zeros([z.shape[0], 1])
+        logdet = torch.zeros([z.shape[0]])
         
         for i in range(self.num):
             z, logdetT = self.flows[i](z)
