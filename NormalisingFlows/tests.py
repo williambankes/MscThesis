@@ -25,63 +25,12 @@ import torch.distributions as dist
 import matplotlib.pyplot as plt
 import numpy as np
 
-from utils import plot_density_contours
-from transforms import AffineTransform, PlanarTransform2
-from normalising_flows import NormalisingFlow
+from NormalisingFlows.utils import plot_density_contours, plot_density_image
+from NormalisingFlows.transforms import AffineTransform, PlanarTransform
+from NormalisingFlows.normalising_flows import NormalisingFlow, CompositeFlow
 
 from sklearn.datasets import make_moons, make_classification
-
-
-#%%
-class TestFlow(nn.Module):
-    
-    def __init__(self, dims):
-        super(TestFlow, self).__init__()
-        
-        self.dims = dims
-        #self.flow1 = AffineTransform(dims)
-        self.flow1 = PlanarTransform(dims)
-        self.flow2 = PlanarTransform(dims)
-        self.flow3 = PlanarTransform(dims)
-        self.flow4 = PlanarTransform(dims)
-        self.flow5 = PlanarTransform(dims)
-
-        
-    def forward(self, x):
-        
-        z, log_detJ = self.flow1(x)        
-        z, log_detJ2 = self.flow2(z)
-        z, log_detJ3 = self.flow3(z)
-        z, log_detJ4 = self.flow4(z)
-        z, log_detJ5 = self.flow5(z)
-                
-        return z, log_detJ + log_detJ2 + log_detJ3 + log_detJ4 + log_detJ5
-    
-class TestFlow2(nn.Module):
-    
-    def __init__(self, dims, Transform, num):
-        
-        super().__init__()
-        
-        self.dims = dims
-        self.num = num
-        self.flows = nn.ModuleList()
-        
-        for i in range(num):
-            self.flows.append(Transform(dims))
-
-    def forward(self, z):
-        
-        logdet = torch.zeros([z.shape[0], 1])
-        
-        for i in range(self.num):
-            z, logdetT = self.flows[i](z)
-            
-            logdet += logdetT
-            
-        return z, logdet
-
-
+  
 #%%
 #Test 1:    
 target_mean = torch.ones([1,2])
@@ -117,10 +66,17 @@ plot_density_contours(lambda x: target_dist.log_prob(x).exp(), 'target')
 
 #%%
 #Test 2:
+z_mean = torch.zeros(2)
+z_sigma = torch.eye(2)
+G = dist.MultivariateNormal(loc=z_mean, covariance_matrix=z_sigma)
     
-#Generate moon data:
-moon_data, label = make_moons(n_samples=2000, noise=0.1)
+#Generate moon data:    
+moon_data, label = make_moons(n_samples=2000, noise=0.01)
 moon_data = moon_data * 2
+
+#Shift slightly to the left:
+moon_data[:,0] -= 1
+
 plt.scatter(moon_data[:, 0], moon_data[:, 1])
 plt.ylim([-5, 5])
 plt.xlim([-5, 5])
@@ -129,35 +85,111 @@ torch_data = torch.tensor(moon_data, dtype=torch.float)
     
 
 #%%
-tf2 = TestFlow2(dims=2, Transform=PlanarTransform2, num=32)
-nf3 = NormalisingFlow(2, tf2, G)
-out = nf3.forward_KL(torch_data, 5000)
+#Look into non-contour methods of plotting these outputs...
 
-plot_density_contours(lambda x: np.exp(nf3.density_estimation_forward(x)),
-                      '{} planar transforms'.format(32))
+num = 8
+
+flow = CompositeFlow(dims=2, Transform=PlanarTransform, num=num)
+nf = NormalisingFlow(2, flow, G)
+out = nf.forward_KL(torch_data, 5000)
+
+plot_density_contours(lambda x: np.exp(nf.density_estimation_forward(x)),
+                      '{} planar transforms'.format(num))
 
 #%%
-#Test flow 2
+plot_density_image(lambda x: np.exp(nf.density_estimation_forward(x)), 'test')
 
+
+#%%
 for n in [5,10,15,20,25,32]:
-    tf2 = TestFlow2(dims=2, Transform=PlanarTransform2, num=n)
+    tf2 = CompositeFlow(dims=2, Transform=PlanarTransform, num=n)
     nf3 = NormalisingFlow(2, tf2, G)
     out = nf3.forward_KL(torch_data, 5000)
     
     plot_density_contours(lambda x: np.exp(nf3.density_estimation_forward(x)),
                           '{} planar transforms'.format(n))
-    
+    plot_density_image(lambda x: np.exp(nf3.density_estimation_forward(x)),
+                          '{} planar transforms'.format(n))
     
 #%%
-#Try fitting to multimodal gaussian first... then fit to two moons? -> some meta learning to improve stability?
-#Define samples from the multi-modal Gaussian:
-    
+#Sample from two Gaussians
+G1 = dist.MultivariateNormal(loc=torch.tensor([1.,1.]),
+                             covariance_matrix=torch.eye(2)*0.2)
+G2 = dist.MultivariateNormal(loc=torch.tensor([-1.,-1.]),
+                             covariance_matrix=torch.eye(2)*0.2)
+
+samples = torch.concat([G1.sample((50,)),
+                        G2.sample((50,))])
+
+plt.scatter(samples[:,0], samples[:,1])
+
+#%%
+
+flow = CompositeFlow(dims=2, Transform=PlanarTransform, num=8)
+nf = NormalisingFlow(2, flow, G)
+out = nf.forward_KL(samples, 3000)
+
+#%%
+plot_density_contours(lambda x: np.exp(nf.density_estimation_forward(x)),
+                      '{} planar transforms'.format(5))
+
+#%%
+#forward density estimation of Normalising flow:    
+out = plot_density_contours(lambda x: G.log_prob(x).exp(), 'target')
+
+#G1 after one normalising flow...
+flow = CompositeFlow(dims=2, Transform=PlanarTransform, num=1)
+nf = NormalisingFlow(2, flow, G)
+
+#Re-create planar flow hexbins:
+plot_density_contours(lambda x: np.exp(nf.density_estimation_forward(x)),
+                      '{} planar transforms'.format(5))
+
+#%%
+z_mean = torch.zeros(2)
+z_sigma = torch.eye(2)
+G = dist.MultivariateNormal(loc=z_mean, covariance_matrix=z_sigma)
+gsample = G.sample((5000,))
+
+fig, axs = plt.subplots()
+axs.hexbin(gsample[:,0], gsample[:,1], C=G.log_prob(gsample).exp(), cmap='rainbow')
+
+flow = CompositeFlow(dims=2, Transform=PlanarTransform, num=1)
+flow.flows[0].w = nn.parameter.Parameter(torch.tensor([[5.,1.]]).T)
+flow.flows[0].v = flow.flows[0].w
+nf = NormalisingFlow(2, flow, G)
+
+sample, sample_prob, detJ = nf.reverse_sample(5000)
+
+fig, axs = plt.subplots()
+axs.hexbin(sample[:,0], sample[:,1], C=sample_prob.exp(), cmap='rainbow')
+
+#p(x) = p(u)|J_T|^(-1)
+sample_prob_new = sample_prob - detJ.detach().reshape(-1)
+
+fig, axs = plt.subplots()
+axs.hexbin(sample[:,0], sample[:,1], C=sample_prob_new.exp(),
+           cmap='rainbow')
+
+#%%
+
+a = torch.tensor([[0.,0.],[-1.5,1.]])
+
+out = flow(a)
+print(out)
+
+
+
+
+
+
+
+
+
+
+
+
+     
+
 
     
-    
-    
-    
-    
-    
-    
-
