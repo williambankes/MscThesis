@@ -2,6 +2,8 @@
 """
 Created on Sun Feb  6 19:23:25 2022
 
+Potentially provide addition of log det J term in the forward functionality
+
 @author: William Bankes
 """
 
@@ -69,11 +71,6 @@ class PlanarTransform(Transform):
         
         super().__init__()
         
-        """
-        self.w = nn.parameter.Parameter(torch.ones([dims]).unsqueeze(-1))
-        self.b = nn.parameter.Parameter(torch.tensor(0.))
-        self.v = nn.parameter.Parameter(torch.ones([dims]).unsqueeze(-1))
-        """
         self.w = nn.parameter.Parameter(torch.rand([dims, 1]) * 2 - 1)
         self.b = nn.parameter.Parameter(torch.tensor(0.))
         self.v = nn.parameter.Parameter(torch.rand([dims, 1]) * 2 - 1)

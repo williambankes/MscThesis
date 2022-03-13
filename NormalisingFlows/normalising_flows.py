@@ -36,6 +36,7 @@ class NormalisingFlow():
             x, log_detJ = self.transform(samples)
             
             log_probu = self.base_dist.log_prob(samples)
+            
             #how to deal with + 1 term?
             with torch.no_grad():
                 log_probx = (density_func(x) + 1).log()
