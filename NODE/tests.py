@@ -19,41 +19,37 @@ from NODE.node import ode_solve, ODEF, NeuralODE
 from sklearn.datasets import make_moons
 
 
-#%% Test ode_solver function 
+#%% Test ode_solver function: NODE code implementation
 
 func = lambda t, x: np.exp(-1 * t) * np.ones_like(x)
+func2 = lambda x, t: np.exp(-1 * t) * np.ones_like(x)
 
 batch = 5
 z0 = torch.tensor(np.random.rand(batch, 1))
 t0 = torch.tensor(0.)
-t1 = torch.arange(0,100,1)
+t1 = torch.arange(0,10,1)
 
-ys = list()
-
-outputs = [ode_solve(z0, t0, t, func) for t in t1]
+#Simple implementation
+outputs = [ode_solve(z0, t0, t, func2) for t in t1]
 outputs = np.hstack(outputs)
 
 fig, axs = plt.subplots()
 for i in range(outputs.shape[0]):
-    axs.plot(outputs[i,:])
+    axs.plot(outputs[i,:], c='r')
 
+#Scipy wrapper
+output = scipySolver.integrate([0, 10], z0, 1, func, t_eval=np.linspace(0, 10, 500))
 
-#%% Test ode_solver class
-
-#define our simple grad function:
-batch = 10
-func = lambda t, x: np.exp(-1 * t) * np.ones_like(x)
-
-#initial points:
-x_init = np.random.rand(batch, 1)
-    
-#ODE solver -> runs in batch:
-solver = scipySolver(func, 1)
-output = solver.integrate([0, 10], x_init, t_eval=np.linspace(0, 10, 100))
-
-fig, axs = plt.subplots()
 for i in range(output[-1]['y'].shape[0]):
-    axs.plot(output[-1]['y'][i,:])
+    axs.plot(output[-1]['t'], output[-1]['y'][i,:], c='b')
+    axs.scatter(10.0*np.ones_like(output[-1]['y'][:,-1]), #pick out last point
+                output[-1]['y'][:,-1], c='b', marker="x")
+    
+#True Solution:
+intercept = z0 + 1
+for i in intercept:
+    axs.plot(t1, i - torch.exp(-t1), c='g')
+    
     
 #%% Test the NODE implementation:
     
@@ -91,7 +87,7 @@ class ClassifierODEF(ODEF):
             nn.Linear(10,2))
         
         
-    def forward(self, x, t):
+    def forward(self, t, x):
         #Takes x, t
                 
         #change t dims to concat...
@@ -99,34 +95,37 @@ class ClassifierODEF(ODEF):
         x = torch.cat([x, t], dim=-1)
         return self.net(x)
         
-    
-        
+     
 class MoonsClassifier(nn.Module):
     
     """
     Classifier for the dataset
     """
     
-    def __init__(self):
+    def __init__(self, visualize=False):
         super().__init__()
-        
+                        
         self.node = NeuralODE(ClassifierODEF())
         self.classifier = nn.Sequential(
-            nn.Softmax())
+            nn.Softmax(dim=-1))
         
-    def forward(self, x):
+    def forward(self, x, visualize=False):
         
-        x = self.node(x)
-        return self.classifier(x)
+        if visualize:
+            x = self.node(x, return_whole_sequence = True)
+            print(x.shape)
+            return x
+            
+        else:
+            x = self.node(x)
+            return self.classifier(x)
     
-    
+model = MoonsClassifier()   
+
 #%% Training
 
-model = MoonsClassifier()    
-epochs = 1000
+epochs = 700
 losses = list()
-
-#labels= nn.functional.one_hot(labels.reshape(-1).to(torch.int64))
 
 optim = torch.optim.Adam(model.parameters())
 
@@ -142,7 +141,11 @@ for epoch in range(epochs):
     loss.backward()
     optim.step()
     
-    losses.append(loss.detach().item())
+    epoch_loss = loss.detach().item()
+    
+    if epoch % 50 == 0:
+        print('Epoch: {} loss: {}'.format(epoch, epoch_loss))
+    losses.append(epoch_loss)
     
 #plot training losses:
 fig, axs = plt.subplots()
@@ -155,23 +158,16 @@ preds = torch.where(preds[:,0] > 0.5, 1, 0)
 fig, axs = plt.subplots()
 axs.scatter(test_set[:,0], test_set[:,1], c=preds)
     
+#%% Generating NODE trajectories
+
+out1 = model(data)
+out2 = model(data, visualize=True)
     
+#theory out2[0] is the og data: we want to return [t, N, dims]
+fig, axs = plt.subplots()
+axs.scatter(out2[0,:,0].detach(), out2[0,:,1].detach(), c=labels)
+axs.scatter(out2[1,:,0].detach(), out2[1,:,1].detach(), c=labels)
     
-    
-
-
-
-
-
-
-
-        
-        
-        
-        
-    
-    
-
 
 
         
