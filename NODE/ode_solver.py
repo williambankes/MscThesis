@@ -2,6 +2,9 @@
 """
 Created on Sun Mar  6 18:36:46 2022
 
+TO DO:
+- Generalise solver to >2 dim data, see _prep_func
+
 @author: William
 """
 
@@ -9,35 +12,9 @@ import torch
 from scipy.integrate import solve_ivp
 
 class scipySolver():
-
-    def __init__(self, func, dims, *func_args):
-        """
-        Acts as our integrator in the Neural ODE implementation. Function manages
-        the scipy integrator by adding handling of batchs with different initial
-        points. 
-        
-        Mostly taken from https://github.com/rtqichen/torchdiffeq/
-        
-        Potential improvements: 
-            - Include numba ode solver for faster processing
-            
-        Parameters
-        ----------
-        func: <method>
-        
-        dims: int
-        
-        func_args: <iterable>
-    
-        """        
-        
-        self.func = self._prep_func(func, dims)
-        self.dims = dims
-        self.func_args = func_args
-        
-        
-        
-    def integrate(self, t_span, x_init, t_eval=None):
+  
+    @staticmethod
+    def integrate(t_span, x_init, dims, func, t_eval=None, *func_args):
         """
         Numerical Integration of self.func across some span of time and for some
         data x of dimensions [Batch x dims]
@@ -47,6 +24,8 @@ class scipySolver():
         
         x_init:torch.tensor()
         [Batch x dims] tensor containing the initial points of the integration
+
+        func: <method> (t, x) where x is the state
 
         Returns
         -------
@@ -63,28 +42,32 @@ class scipySolver():
         #assertion that x is correctly dimensioned:
         assert len(x_init.shape) == 2,\
             'Tensors with more than two dimensions not implemented'
-        assert x_init.shape[1] == self.dims,\
+        assert x_init.shape[1] == dims,\
             "Input tensors dims: {} don't match construct dims: {}".format(x_init.shape[1],
-                                                                           self.dims)
+                                                                           dims)
+        
+        func = scipySolver._prep_func(func, dims)
+            
+            
         #record the batch size
         batch = x_init.shape[0]
             
         #Run the solver_ivp function:
-        solution = solve_ivp(self.func,
+        solution = solve_ivp(func,
                               t_span,
                               x_init.reshape(-1),
-                              args=self.func_args,
+                              args=func_args,
                               t_eval=t_eval)
         
         #re map the 1-d solution back to input dims:
-        x_out = solution['y'].reshape(-1, batch, self.dims)
+        x_out = solution['y'].reshape(-1, batch, dims)
         t = solution['t']
         success = solution['success']
         
         return success, x_out, t, solution
 
-        
-    def _prep_func(self, func, dims):
+    @staticmethod
+    def _prep_func(func, dims):
         """
         We start with a (N,D) func input, we need to move to (NxD) func for the 
         solver
