@@ -2,6 +2,15 @@
 """
 Created on Sat Mar  5 15:27:58 2022
 
+To do: 
+    
+Integrate ScipySolver:
+    
+Understand type conversion through NODE process -> when is conversion
+occuring... Look into torchdiffeq...
+
+Visualise Augmented NODE 
+
 @author: William
 """
 
@@ -88,10 +97,8 @@ class ClassifierODEF(ODEF):
         
         
     def forward(self, t, x):
-        #Takes x, t
                 
-        #change t dims to concat...
-        t = t.expand(x.shape[0], 1)       
+        t = t.expand(x.shape[0], 1) 
         x = torch.cat([x, t], dim=-1)
         return self.net(x)
         
@@ -107,7 +114,12 @@ class MoonsClassifier(nn.Module):
                         
         self.node = NeuralODE(ClassifierODEF())
         self.classifier = nn.Sequential(
+            #nn.Linear(2,2),
             nn.Softmax(dim=-1))
+        
+        #self.classifier = nn.Sequential(
+        #    nn.Linear(2,2),
+        #    nn.Softmax(dim=-1))
         
     def forward(self, x, visualize=False):
         
@@ -163,11 +175,9 @@ axs.scatter(test_set[:,0], test_set[:,1], c=preds)
 out1 = model(data)
 out2 = model(data, visualize=True)
     
-#theory out2[0] is the og data: we want to return [t, N, dims]
 fig, axs = plt.subplots()
-axs.scatter(out2[0,:,0].detach(), out2[0,:,1].detach(), c=labels)
 axs.scatter(out2[1,:,0].detach(), out2[1,:,1].detach(), c=labels)
-    
+
 
 
         

@@ -4,6 +4,9 @@ Created on Mon May  9 11:34:28 2022
 
 Code taken from: https://github.com/msurtsukov/neural-ode/blob/master/Neural%20ODEs.ipynb
 
+Ideas:
+- Remove iteration over time span and use scipySolver
+
 @author: William
 """
 
@@ -13,8 +16,8 @@ import numpy as np
 import torch
 from torch import Tensor
 from torch import nn
-from torch.nn  import functional as F 
-from torch.autograd import Variable
+
+from NODE.ode_solver import scipySolver
 
 use_cuda = torch.cuda.is_available()
 
@@ -33,7 +36,7 @@ def ode_solve(z0, t0, t1, f):
     z = z0
 
     for i_step in range(n_steps):
-        z = z + h * f(z, t)
+        z = z + h * f(t, z)
         t = t + h
     return z
 
@@ -41,11 +44,12 @@ def ode_solve(z0, t0, t1, f):
 #Neural ODE Code:
     
 class ODEF(nn.Module):
+    
     def forward_with_grad(self, z, t, grad_outputs):
         """Compute f and a df/dz, a df/dp, a df/dt"""
         batch_size = z.shape[0]
 
-        out = self.forward(z, t)
+        out = self.forward(t, z)
 
         a = grad_outputs
         adfdz, adfdt, *adfdp = torch.autograd.grad(
@@ -70,6 +74,7 @@ class ODEF(nn.Module):
     
     
 class ODEAdjoint(torch.autograd.Function):
+    
     @staticmethod
     def forward(ctx, z0, t, flat_parameters, func):
         assert isinstance(func, ODEF)
@@ -98,8 +103,9 @@ class ODEAdjoint(torch.autograd.Function):
         n_dim = np.prod(z_shape)
         n_params = flat_parameters.size(0)
         
-    # Dynamics of augmented system to be calculated backwards in time
-        def augmented_dynamics(aug_z_i, t_i):
+        #DEFINE AUGMENTED DYNAMICS FUNCTION
+        #def augmented_dynamics(aug_z_i, t_i): change api inputs
+        def augmented_dynamics(t_i, aug_z_i):
             """
             tensors here are temporal slices
             t_i - is tensor with size: bs, 1
@@ -123,6 +129,8 @@ class ODEAdjoint(torch.autograd.Function):
             adfdz = adfdz.view(bs, n_dim) 
             return torch.cat((func_eval, -adfdz, -adfdp, -adfdt), dim=1)
         
+        #DEFINED AUG STATE AND SOLVE USING ODE_SOLVER
+        
         dLdz = dLdz.view(time_len, bs, n_dim)  # flatten dLdz for convenience
         with torch.no_grad():
             ## Create placeholders for output gradients
@@ -135,7 +143,7 @@ class ODEAdjoint(torch.autograd.Function):
             for i_t in range(time_len-1, 0, -1):
                 z_i = z[i_t]
                 t_i = t[i_t]
-                f_i = func(z_i, t_i).view(bs, n_dim)
+                f_i = func(t_i, z_i).view(bs, n_dim)
         
                 # Compute direct gradients
                 dLdz_i = dLdz[i_t]
@@ -149,7 +157,7 @@ class ODEAdjoint(torch.autograd.Function):
                 aug_z = torch.cat((z_i.view(bs, n_dim), adj_z, torch.zeros(bs, n_params).to(z), adj_t[i_t]), dim=-1)
         
                 # Solve augmented system backwards
-                aug_ans = ode_solve(aug_z, t_i, t[i_t-1], augmented_dynamics)
+                aug_ans = ode_solve(aug_z, t_i, t[i_t-1], augmented_dynamics) #ODE_SOLVER
         
                 # Unpack solved backwards augmented system
                 adj_z[:] = aug_ans[:, n_dim:2*n_dim]
@@ -173,14 +181,15 @@ class NeuralODE(nn.Module):
         super(NeuralODE, self).__init__()
         assert isinstance(func, ODEF)
         self.func = func
+        
+        #Create network solver:
+        self.solver = scipySolver
 
     def forward(self, z0, t=Tensor([0., 1.]), return_whole_sequence=False):
         t = t.to(z0)
-        z = ODEAdjoint.apply(z0, t, self.func.flatten_parameters(), self.func)
+        z = ODEAdjoint.apply(z0, t, self.func.flatten_parameters(),
+                             self.func)
         if return_whole_sequence:
             return z
         else:
             return z[-1]
-
-    
-
