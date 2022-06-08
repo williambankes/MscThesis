@@ -9,8 +9,9 @@ Potentially provide addition of log det J term in the forward functionality
 
 import torch
 import torch.nn as nn
-import torch.distributions as dist
 import torch.nn.functional as F
+
+from NODE.node import ODEF, NeuralODE
 
 
 class Transform(nn.Module):
@@ -37,13 +38,12 @@ class AffineTransform(Transform):
     def __init__(self, dims, cnst=0.01):
         super().__init__()
         
-        #Cholesky decomp scale param:
+        #Init Parameters
         alpha = torch.eye(dims) + torch.ones([dims, dims])
+        alpha = alpha/4
             
         self.alpha = nn.parameter.Parameter(alpha)       
-        
-        #translation
-        self.beta = nn.parameter.Parameter(torch.ones([dims]).unsqueeze(0))
+        self.beta = nn.parameter.Parameter(torch.ones([dims]).unsqueeze(0)/2)
         
         #dimension parameters:
         self.dims = dims
@@ -60,13 +60,7 @@ class AffineTransform(Transform):
         return x @ A + self.beta, torch.det(A).log()
     
 class PlanarTransform(Transform):
-    
-    """
-    Questions:
-        - if tf.tensordot(self.w, self.u, 1) <= -1 -> can we do this like this?
-        - Is the re-param the squared norm or norm?
-    """
-    
+        
     def __init__(self, dims):
         
         super().__init__()
@@ -113,11 +107,77 @@ class PlanarTransform(Transform):
         jac = 1. + self._h_prime(linear) * (self.w.T @ self._v_prime())
         det_jac = torch.abs(jac)
         return det_jac.log().reshape(-1)
-                
 
-
-if __name__ == '__main__':
-    #Create tests for new layers
-    pass
-
+    
+    
+class normalisingODEF(ODEF):
+    """
+    Network parameterises the Neural ODE classifier.
+    """
+    
+    def __init__(self, network):
+        super().__init__()
+        self.net = network
         
+                
+    def _calc_trace_dfdx(self, f, x):
+        
+        """Calculates the trace of the Jacobian df/dz.
+        Taken from: torchdiffeq/examples/cnf.py
+        
+        f:<torch.tensor>
+        (N,D) output of ode solver
+        
+        x:<torch.tensor>
+        (N,D) input of ode solver, gradient enabled
+        """
+               
+        sum_diag = 0.
+        for i in range(x.shape[1]):
+            sum_diag += torch.autograd.grad(f[:, i].sum(), x, create_graph=True)[0][:, i]
+        return sum_diag.reshape(-1, 1)
+        
+        
+    def forward(self, t, x):
+                       
+        #Split input into state and logp init
+        data = x[:,:-1]
+        
+        with torch.set_grad_enabled(True):
+        
+            data.requires_grad_()
+            t = t.expand(x.shape[0], 1) 
+            xt = torch.concat([data, t], dim=-1)        
+            f = self.net(xt)
+            
+            dlogpdt = - self._calc_trace_dfdx(f, data)
+                
+        return torch.concat([f, dlogpdt], axis=-1)
+    
+    
+class CNFTransform(Transform):
+    
+    """
+    Neural ODE transform
+    """
+    
+    def __init__(self, network):
+        super().__init__()
+        self.node = NeuralODE(normalisingODEF(network))
+    
+        
+    def forward(self, x):
+                    
+        #Add log_prob dimension:
+        prob_init = torch.zeros((x.shape[0], 1))
+        x = torch.cat([x, prob_init], axis=-1)
+        
+        x = self.node(x)
+        
+        output_state = x[:, :-1]
+        log_det_J = x[:, -1]
+        
+        return output_state, log_det_J
+        
+
+                     
