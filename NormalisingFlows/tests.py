@@ -2,194 +2,333 @@
 """
 Created on Sun Feb  6 19:24:50 2022
 
+A set of testing environments used for development and sense checking code, not
+unit tests per say but uses the framework to structure and run code without bugs
+
 To do:
     
-- Test on moon data 
-    -> understand stability of training flows
-    -> reproduce pyMC3 tutorial to some degree (although reverse KL used there)
+- Investigate stabilising planar flow transforms with batch layers
 
-- Develop TestFlow modules for better handling of forward and logdet
-    -> input multiple layer instructions at once for easier coding /iteration
-    
-- Understand how expressivity of planar flows works
-- Implement low dim noise model
-
+- Density issues with CNF -> Sums to strange values
 
 
 @author: William Bankes
 """
 
+#%% Imports
+import unittest
 import torch
 import torch.nn as nn
 import torch.distributions as dist
 import matplotlib.pyplot as plt
 import numpy as np
 
-from NormalisingFlows.utils import plot_density_contours, plot_density_image
-from NormalisingFlows.transforms import AffineTransform, PlanarTransform
+from NormalisingFlows.utils import plot_density_contours
+from NormalisingFlows.transforms import AffineTransform, PlanarTransform, CNFTransform
 from NormalisingFlows.normalising_flows import NormalisingFlow, CompositeFlow
 
-from sklearn.datasets import make_moons, make_classification
+from sklearn.datasets import make_moons
   
-#%%
-#Test 1:    
-target_mean = torch.ones([1,2])
-target_sigma = torch.eye(2) * 4
-target_dist = dist.MultivariateNormal(loc=target_mean,
-                                      covariance_matrix=target_sigma)
-
+#%% Global Test variables:
+    
 N = 1000
-data = target_dist.sample(torch.Size([N]))
-data = data.reshape(N, 2)
+visualise = True
+dev = True
 
-print('data shape:', data.shape)
+#%%
 
-z_mean = torch.zeros(2)
-z_sigma = torch.eye(2)
-G = dist.MultivariateNormal(loc=z_mean, covariance_matrix=z_sigma)
+@unittest.skipIf(dev, "Development mode on")
+class GaussianTests(unittest.TestCase):
     
-nf = NormalisingFlow(2, TestFlow(2), G)
-out = nf.forward_KL(data, 5000)
-
-# Plot losses
-fig, axs = plt.subplots(figsize=(10,7))
-axs.plot(out)
-axs.set_title('training loss')
-
-# Plot actual and 'found' distributions:
-plot_density_contours(lambda x: np.exp(nf.density_estimation_forward(x)) , 'backward')
-plot_density_contours(lambda x: target_dist.log_prob(x).exp(), 'target')
-
-#print optimised params and actual:
-#a = nf.transform.flow1.alpha
-#print('Alpha param:', torch.linalg.inv(a@a.T + 0.01*torch.eye(2)))
-
-#%%
-#Test 2:
-z_mean = torch.zeros(2)
-z_sigma = torch.eye(2)
-G = dist.MultivariateNormal(loc=z_mean, covariance_matrix=z_sigma)
+    """
+    Test transforms and Normalising Flow setup in simple setting of Gaussian
+    noise
+    """
+    def setUp(self):
+        
+        """
+        Generates target and base distributions        
+        """
+        
+        #define Gaussian distributions
+        target_mean = torch.ones([1,2])
+        target_sigma = torch.eye(2) * 4
+        self.target_dist = dist.MultivariateNormal(loc=target_mean,
+                                              covariance_matrix=target_sigma)
+        
+        base_mean = torch.zeros(2)
+        base_sigma = torch.eye(2)
+        self.base_dist = dist.MultivariateNormal(loc=base_mean,
+                                            covariance_matrix=base_sigma)
+        
+        #generate data:
+        global N
+        data = self.target_dist.sample(torch.Size([N]))
+        self.data = data.reshape(N, 2)
+        
+        
+    def visualisations(self, loss, nf, name):
+        
+        global visualise
+        if visualise:
+            
+            fig, axs = plt.subplots(figsize=(10,7))
+            axs.plot(loss)
+            axs.set_title('GaussianTests.{} training loss'.format(name))
     
-#Generate moon data:    
-moon_data, label = make_moons(n_samples=2000, noise=0.01)
-moon_data = moon_data * 2
-
-#Shift slightly to the left:
-moon_data[:,0] -= 1
-
-plt.scatter(moon_data[:, 0], moon_data[:, 1])
-plt.ylim([-5, 5])
-plt.xlim([-5, 5])
-
-torch_data = torch.tensor(moon_data, dtype=torch.float)
+            # Plot actual and 'found' distributions:
+            plot_density_contours(lambda x: np.exp(nf.density_estimation_forward(x)),
+                                  'GaussianTests.{} backward dist'.format(name))
+            plot_density_contours(lambda x: self.target_dist.log_prob(x).exp(),
+                                  'GaussianTests.{} target dist'.format(name))
+        
+                
     
+    def test_affine(self):
+        
+        #Create Composite flow of Affine Transforms
+        affine_flow = CompositeFlow(dims=2, transform=AffineTransform,
+                                    num=1)
+        nf = NormalisingFlow(dims=2, transform=affine_flow,
+                             base_dist=self.base_dist, verbose=False)
+        loss = nf.forward_KL(self.data, epochs=1000)
+        
+        #Check loss decreases 
+        self.assertTrue(loss[0] > loss[-1])
+        self.visualisations(loss, nf, 'test_affine')          
 
-#%%
-#Look into non-contour methods of plotting these outputs...
+            
+    def test_planar(self):
+            
+        planar_flow = CompositeFlow(dims=2, transform=PlanarTransform,
+                                    num=1)
+        nf = NormalisingFlow(dims=2, transform=planar_flow,
+                             base_dist=self.base_dist, verbose=False)
+        loss = nf.forward_KL(self.data, epochs=1000)
+        
+        self.assertTrue(loss[0] > loss[-1])
+        self.visualisations(loss, nf, 'test_planar')
+        
 
-num = 8
-
-flow = CompositeFlow(dims=2, Transform=PlanarTransform, num=num)
-nf = NormalisingFlow(2, flow, G)
-out = nf.forward_KL(torch_data, 5000)
-
-plot_density_contours(lambda x: np.exp(nf.density_estimation_forward(x)),
-                      '{} planar transforms'.format(num))
-
-#%%
-plot_density_image(lambda x: np.exp(nf.density_estimation_forward(x)), 'test')
-
-
-#%%
-for n in [5,10,15,20,25,32]:
-    tf2 = CompositeFlow(dims=2, Transform=PlanarTransform, num=n)
-    nf3 = NormalisingFlow(2, tf2, G)
-    out = nf3.forward_KL(torch_data, 5000)
+@unittest.skipIf(dev, "Development mode on")
+class TwoMoonsTest(unittest.TestCase):
     
-    plot_density_contours(lambda x: np.exp(nf3.density_estimation_forward(x)),
-                          '{} planar transforms'.format(n))
-    plot_density_image(lambda x: np.exp(nf3.density_estimation_forward(x)),
-                          '{} planar transforms'.format(n))
+    def setUp(self):
+        
+        base_mean = torch.zeros(2)
+        base_sigma = torch.eye(2)
+        self.base_dist = dist.MultivariateNormal(loc=base_mean,
+                                            covariance_matrix=base_sigma)
+        
+        moon_data, _ = make_moons(n_samples=N, noise=0.01)
+        self.data = torch.tensor(moon_data, dtype=torch.float)
+               
+           
+    def visualisations(self, loss, nf, name):
+        
+        global visualise
+        if visualise:
+            
+            fig, axs = plt.subplots(figsize=(10,7))
+            axs.plot(loss)
+            axs.set_title('TwoMoonsTests.{} training loss'.format(name))
     
-#%%
-#Sample from two Gaussians
-G1 = dist.MultivariateNormal(loc=torch.tensor([1.,1.]),
-                             covariance_matrix=torch.eye(2)*0.2)
-G2 = dist.MultivariateNormal(loc=torch.tensor([-1.,-1.]),
-                             covariance_matrix=torch.eye(2)*0.2)
+            # Plot actual and 'found' distributions:
+            plot_density_contours(lambda x: np.exp(nf.density_estimation_forward(x)),
+                                  'TwoMoonsTests.{} backward dist'.format(name))
+        
+        
+    def test_planar_ensemble(self):
+        
+        planar_flow = CompositeFlow(dims=2, transform=PlanarTransform,
+                                    num=10)
+        nf = NormalisingFlow(dims=2, transform=planar_flow,
+                             base_dist=self.base_dist, verbose=True)
+        loss = nf.forward_KL(self.data, epochs=3000)
+        
+        self.assertTrue(loss[0] > loss[-1])
+        
+        self.visualisations(loss, nf, 'test_planar_ensemble')
+        
+    def test_planar_normalisation(self):
+        
+        #sample from base distribution:
+        base_samples = self.base_dist.sample((N,))
+    
+        #Create flow and set parameters:        
+        flow = CompositeFlow(dims=2, transform=PlanarTransform, num=1)
+        flow.flows[0].w = nn.parameter.Parameter(torch.tensor([[5.,1.]]).T)
+        flow.flows[0].v = flow.flows[0].w
+        
+        #Create flow and pass through single planar transform:
+        nf = NormalisingFlow(dims=2, transform=flow, base_dist=self.base_dist)
+        sample, sample_prob, detJ = nf.reverse_sample(N)
+        
+        global visualise  
+        if visualise:
+            
+            fig, axs = plt.subplots(ncols=3, figsize=(15,5))
+            axs[0].hexbin(base_samples[:,0], 
+                       base_samples[:,1],
+                       C=self.base_dist.log_prob(base_samples).exp(),
+                       cmap='rainbow')
+            axs[0].set_title('Base Distribution')
+            
+        
+            axs[1].hexbin(sample[:,0],
+                       sample[:,1],
+                       C=sample_prob.exp(),
+                       cmap='rainbow')
+            axs[1].set_title('Transformed')
+            
+            
+            sample_prob_new = sample_prob - detJ.detach().reshape(-1)
 
-samples = torch.concat([G1.sample((50,)),
-                        G2.sample((50,))])
+            axs[2].hexbin(sample[:,0], 
+                       sample[:,1],
+                       C=sample_prob_new.exp(),
+                       cmap='rainbow')
+            axs[2].set_title('Normalised Transform')
+             
 
-plt.scatter(samples[:,0], samples[:,1])
+class CNFTests(unittest.TestCase):
+    
+    """
+    Test Continuous Normalising Flow implementation
+    """
+    
+    def setUp(self):
+        
+        base_mean = torch.zeros(2)
+        base_sigma = torch.eye(2)
+        self.base_dist = dist.MultivariateNormal(loc=base_mean,
+                                            covariance_matrix=base_sigma)
+        
+        moon_data, _ = make_moons(n_samples=N, noise=0.01)
+        self.data = torch.tensor(moon_data, dtype=torch.float)
+                
+        
+        self.network_simple = nn.Sequential(
+                    nn.Linear(3,3),
+                    nn.Sigmoid(),
+                    nn.Linear(3,2))
+        
+        
+        self.network = nn.Sequential(
+                    nn.Linear(3,32),
+                    nn.BatchNorm1d(32),
+                    nn.LeakyReLU(),
+                    nn.Linear(32,32),
+                    nn.BatchNorm1d(32),
+                    nn.LeakyReLU(),
+                    nn.Linear(32,2))
 
-#%%
+        #Ensure smart initialisation of network parameters        
+        def init_weights(m):
+            if isinstance(m, nn.Linear):
+                torch.nn.init.xavier_uniform(m.weight)
+                m.bias.data.fill_(0.01)
 
-flow = CompositeFlow(dims=2, Transform=PlanarTransform, num=8)
-nf = NormalisingFlow(2, flow, G)
-out = nf.forward_KL(samples, 3000)
+        net = nn.Sequential(nn.Linear(2, 2), nn.Linear(2, 2))
+        net.apply(init_weights)
 
-#%%
-plot_density_contours(lambda x: np.exp(nf.density_estimation_forward(x)),
-                      '{} planar transforms'.format(5))
+        
+        
+    def visualisations(self, loss, nf, name):
+        
+        global visualise
+        if visualise:
+            
+            fig, axs = plt.subplots(figsize=(10,7))
+            axs.plot(loss)
+            axs.set_title('TwoMoonsTests.{} training loss'.format(name))
+    
+            # Plot actual and 'found' distributions:
+            plot_density_contours(lambda x: np.exp(nf.density_estimation_forward(x)),
+                                  'TwoMoonsTests.{} backward dist'.format(name))
+  
+    @unittest.SkipTest
+    def test_cnf_output_dims(self):
+                
+        #Create cnfTransform:
+        cnf = CNFTransform(self.network)
+        pf = PlanarTransform(2)
+        
+        cnf_out, cnf_log_prob = cnf(self.data)
+        pf_out, pf_log_prob = pf(self.data)
+        
+        #Ensure dimensionality of outputs correct
+        self.assertTrue(cnf_out.shape == pf_out.shape)
+        self.assertTrue(cnf_log_prob.shape == pf_log_prob.shape)
+          
+    @unittest.SkipTest     
+    def test_cnf(self):
+        
+        cnf = CNFTransform(self.network)
+        nf = NormalisingFlow(dims=2, transform=cnf,
+                             base_dist=self.base_dist, verbose=True)
+        loss = nf.forward_KL(self.data, epochs=1000)
+        
+        #self.assertTrue(loss[0] > loss[-1])
+        self.visualisations(loss, nf, 'test_cnf')
+        
+    def test_gaussian_cnf(self):
+        
+        #generate data:
+        data = self.base_dist.sample((1000,))
+        
+        cnf = CNFTransform(self.network)
+        nf = NormalisingFlow(dims=2, transform=cnf,
+                             base_dist=self.base_dist, verbose=True)
+        loss = nf.forward_KL(data, epochs=300)
+        
+        self.visualisations(loss, nf, 'test_cnf_gaussian')
+      
+      
+      
+    @unittest.SkipTest
+    def test_cnf_normalisiation(self):
+        
+        #sample from base distribution:
+        base_samples = self.base_dist.sample((5000,))
+    
+        #Create flow and set parameters:        
+        cnf = CNFTransform(self.network)
+        
+        #Create flow and pass through single planar transform:
+        nf = NormalisingFlow(dims=2, transform=cnf, base_dist=self.base_dist)
+        sample, sample_prob, detJ = nf.reverse_sample(N)
+        
+        print(detJ)
+        
+        global visualise  
+        if visualise:
+            
+            fig, axs = plt.subplots(ncols=3, figsize=(15,5))
+            
+            axs[0].hexbin(base_samples[:,0], 
+                       base_samples[:,1],
+                       C=self.base_dist.log_prob(base_samples).exp(),
+                       cmap='rainbow')
+            axs[0].set_title('Base Distribution')
+            
+            axs[1].hexbin(sample[:,0],
+                       sample[:,1],
+                       C=sample_prob.exp(),
+                       cmap='rainbow')
+            axs[1].set_title('CNF Transformed (prob unadjusted)')
+            
+            sample_prob_new = sample_prob - detJ.detach().reshape(-1)
 
-#%%
-#forward density estimation of Normalising flow:    
-out = plot_density_contours(lambda x: G.log_prob(x).exp(), 'target')
-
-#G1 after one normalising flow...
-flow = CompositeFlow(dims=2, Transform=PlanarTransform, num=1)
-nf = NormalisingFlow(2, flow, G)
-
-#Re-create planar flow hexbins:
-plot_density_contours(lambda x: np.exp(nf.density_estimation_forward(x)),
-                      '{} planar transforms'.format(5))
-
-#%%
-z_mean = torch.zeros(2)
-z_sigma = torch.eye(2)
-G = dist.MultivariateNormal(loc=z_mean, covariance_matrix=z_sigma)
-gsample = G.sample((5000,))
-
-fig, axs = plt.subplots()
-axs.hexbin(gsample[:,0], gsample[:,1], C=G.log_prob(gsample).exp(), cmap='rainbow')
-
-flow = CompositeFlow(dims=2, Transform=PlanarTransform, num=1)
-flow.flows[0].w = nn.parameter.Parameter(torch.tensor([[5.,1.]]).T)
-flow.flows[0].v = flow.flows[0].w
-nf = NormalisingFlow(2, flow, G)
-
-sample, sample_prob, detJ = nf.reverse_sample(5000)
-
-fig, axs = plt.subplots()
-axs.hexbin(sample[:,0], sample[:,1], C=sample_prob.exp(), cmap='rainbow')
-
-#p(x) = p(u)|J_T|^(-1)
-sample_prob_new = sample_prob - detJ.detach().reshape(-1)
-
-fig, axs = plt.subplots()
-axs.hexbin(sample[:,0], sample[:,1], C=sample_prob_new.exp(),
-           cmap='rainbow')
-
-#%%
-
-a = torch.tensor([[0.,0.],[-1.5,1.]])
-
-out = flow(a)
-print(out)
-
-
-
-
-
-
-
-
-
-
-
-
+            axs[2].hexbin(sample[:,0], 
+                       sample[:,1],
+                       C=sample_prob_new.exp(),
+                       cmap='rainbow')
+            axs[2].set_title('CNF Transform (prob adjusted)')
      
-
-
+            
+        
+if __name__ == '__main__':
     
+    unittest.main(verbosity=2)
+  
