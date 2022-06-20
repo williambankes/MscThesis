@@ -23,6 +23,8 @@ def plot_density_contours(dense_func, title, colour='Blues'):
     #Reshape into 2d output
     ZZ = py.reshape(XX.shape)
         
+    print('ZZ sum:', ZZ.sum())
+    
     #Plot density contours:    
     con = axs.contourf(XX, YY, ZZ, cmap=colour, vmin=ZZ.min(), vmax=ZZ.max())    
     #fig.colorbar(con, ax=axs)
