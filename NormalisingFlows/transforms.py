@@ -2,8 +2,6 @@
 """
 Created on Sun Feb  6 19:23:25 2022
 
-Potentially provide addition of log det J term in the forward functionality
-
 @author: William Bankes
 """
 
@@ -68,7 +66,7 @@ class PlanarTransform(Transform):
         self.w = nn.parameter.Parameter(torch.rand([dims, 1]) * 2 - 1)
         self.b = nn.parameter.Parameter(torch.tensor(0.))
         self.v = nn.parameter.Parameter(torch.rand([dims, 1]) * 2 - 1)
-    
+        
     def _h(self, x):
         return torch.tanh(x)
     
@@ -76,19 +74,13 @@ class PlanarTransform(Transform):
         return 1. - torch.tanh(x).pow(2)
     
     def _v_prime(self):
-                
+                        
         wTv = self.w.T @ self.v
-        
-        if wTv <= -1:
-        
-            m = -1. + F.softplus(wTv)
-            update = (m - wTv)*(self.w/torch.norm(self.w, p=2))
-        
-            return self.v + update
+                
+        m = -1. + F.softplus(wTv)
+        update = (m - wTv)*(self.w/(self.w.T@self.w))
     
-        else:
-            
-            return self.v
+        return self.v + update
     
     def _forward_pass(self, x):
         
@@ -105,7 +97,8 @@ class PlanarTransform(Transform):
         
         linear = x @ self.w + self.b
         jac = 1. + self._h_prime(linear) * (self.w.T @ self._v_prime())
-        det_jac = torch.abs(jac)
+        det_jac = torch.abs(jac) + 1e-4
+        
         return det_jac.log().reshape(-1)
 
     
@@ -134,7 +127,10 @@ class normalisingODEF(ODEF):
                
         sum_diag = 0.
         for i in range(x.shape[1]):
-            sum_diag += torch.autograd.grad(f[:, i].sum(), x, create_graph=True)[0][:, i]
+            sum_diag += torch.autograd.grad(f[:, i].sum(),
+                                            x,
+                                            create_graph=True,
+                                            allow_unused=True)[0][:, i]
         return sum_diag.reshape(-1, 1)
         
         
