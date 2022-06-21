@@ -26,9 +26,13 @@ class Transform(nn.Module):
         
         raise NotImplementedError
         
-    def forward(self):
+    def tforward(self):
         
         raise NotImplementedError  
+        
+    def treverse(self):
+        
+        raise NotImplementedError
         
     
 class AffineTransform(Transform):
@@ -51,17 +55,26 @@ class AffineTransform(Transform):
             
         raise NotImplementedError
     
-    def forward(self, x):
+    def tforward(self, x):
         
         A = torch.mm(self.alpha, self.alpha.T) + self.cnst*torch.eye(self.dims)
                 
         return x @ A + self.beta, torch.det(A).log()
+    
+    def treverse(self, y):
+        
+        A = torch.mm(self.alpha, self.alpha.T) + self.cnst*torch.eye(self.dims)
+        A_inv = torch.inverse(A)
+        
+        return (y - self.beta) @ A_inv, torch.det(A_inv).log()
     
 class PlanarTransform(Transform):
         
     def __init__(self, dims):
         
         super().__init__()
+        
+        self.forward = None
         
         self.w = nn.parameter.Parameter(torch.rand([dims, 1]) * 2 - 1)
         self.b = nn.parameter.Parameter(torch.tensor(0.))
@@ -82,16 +95,33 @@ class PlanarTransform(Transform):
     
         return self.v + update
     
-    def _forward_pass(self, x):
+    def _transform(self, x):
         
         linear = x @ self.w + self.b
         update = self._h(linear) * self._v_prime().T
                         
         return x + update
     
-    def forward(self, x):
+    def tforward(self, u):
         
-        return self._forward_pass(x), self.log_det_jac(x)
+        x, logdetJ = self._transform(u), self.log_det_jac(u)
+        
+        if self.forward is None or self.forward == True:
+            print('here')
+            self.forward = True                        
+            return x, logdetJ
+        else:
+            raise NotImplementedError
+        
+    def treverse(self, x):
+        
+        u, logdetJ = self._transform(x), self.log_det_jac(x)
+        
+        if self.forward is None or self.forward == False:
+            self.forward = False                
+            return u, logdetJ
+        else:
+            raise NotImplementedError
     
     def log_det_jac(self, x):
         
@@ -146,7 +176,7 @@ class normalisingODEF(ODEF):
             xt = torch.concat([data, t], dim=-1)        
             f = self.net(xt)
             
-            dlogpdt = - self._calc_trace_dfdx(f, data)
+            dlogpdt = self._calc_trace_dfdx(f, data)
                 
         return torch.concat([f, dlogpdt], axis=-1)
     
@@ -161,14 +191,28 @@ class CNFTransform(Transform):
         super().__init__()
         self.node = NeuralODE(normalisingODEF(network))
     
+       
+    def treverse(self, x):
         
-    def forward(self, x):
-                    
         #Add log_prob dimension:
         prob_init = torch.zeros((x.shape[0], 1))
         x = torch.cat([x, prob_init], axis=-1)
         
-        x = self.node(x)
+        u = self.node(x, t=torch.tensor([1., 0.]))
+        
+        output_state = u[:, :-1]
+        log_det_J = u[:, -1]
+        
+        return output_state, log_det_J
+    
+    
+    def tforward(self, u):
+                    
+        #Add log_prob dimension:
+        prob_init = torch.zeros((u.shape[0], 1))
+        u = torch.cat([u, prob_init], axis=-1)
+        
+        x = self.node(u, t=torch.tensor([0., 1.]))
         
         output_state = x[:, :-1]
         log_det_J = x[:, -1]
