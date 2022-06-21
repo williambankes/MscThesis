@@ -34,8 +34,7 @@ from NODE.ode_solver import scipySolver
 
 from sklearn.datasets import make_moons
   
-#%% Global Test variables:
-    
+#%% Global Test variables:    
 N = 1000
 visualise = True
 dev = True
@@ -83,13 +82,12 @@ class GaussianTests(unittest.TestCase):
             axs.set_title('GaussianTests.{} training loss'.format(name))
     
             # Plot actual and 'found' distributions:
-            plot_density_contours(lambda x: np.exp(nf.density_estimation_forward(x)),
+            plot_density_contours(lambda x: np.exp(nf.density_estimation_reverse(x)),
                                   'GaussianTests.{} backward dist'.format(name))
             plot_density_contours(lambda x: self.target_dist.log_prob(x).exp(),
                                   'GaussianTests.{} target dist'.format(name))
         
-                
-    @unittest.SkipTest
+
     def test_affine(self):
         
         #Create Composite flow of Affine Transforms
@@ -97,7 +95,7 @@ class GaussianTests(unittest.TestCase):
                                     num=1)
         nf = NormalisingFlow(dims=2, transform=affine_flow,
                              base_dist=self.base_dist, verbose=False)
-        loss = nf.forward_KL(self.data, epochs=5000)
+        loss = nf.sample_KL(self.data, epochs=1000)
         
         #Check loss decreases 
         self.assertTrue(loss[0] > loss[-1])
@@ -109,8 +107,8 @@ class GaussianTests(unittest.TestCase):
         planar_flow = CompositeFlow(dims=2, transform=PlanarTransform,
                                     num=1)
         nf = NormalisingFlow(dims=2, transform=planar_flow,
-                             base_dist=self.base_dist, verbose=True)
-        loss = nf.forward_KL(self.data, epochs=3000)
+                             base_dist=self.base_dist, verbose=False)
+        loss = nf.sample_KL(self.data, epochs=3000)
         
         self.assertTrue(loss[0] > loss[-1])
         self.visualisations(loss, nf, 'test_planar')
@@ -140,7 +138,7 @@ class TwoMoonsTest(unittest.TestCase):
             axs.set_title('TwoMoonsTests.{} training loss'.format(name))
     
             # Plot actual and 'found' distributions:
-            plot_density_contours(lambda x: np.exp(nf.density_estimation_forward(x)),
+            plot_density_contours(lambda x: np.exp(nf.density_estimation_reverse(x)),
                                   'TwoMoonsTests.{} backward dist'.format(name))
         
         
@@ -150,7 +148,7 @@ class TwoMoonsTest(unittest.TestCase):
                                     num=16)
         nf = NormalisingFlow(dims=2, transform=planar_flow,
                              base_dist=self.base_dist, verbose_every=1000)
-        loss = nf.forward_KL(self.data, epochs=10000)
+        loss = nf.sample_KL(self.data, epochs=10000)
         
         self.assertTrue(loss[0] > loss[-1])
         self.visualisations(loss, nf, 'test_planar_ensemble')
@@ -169,7 +167,7 @@ class TwoMoonsTest(unittest.TestCase):
         
         #Create flow and pass through single planar transform:
         nf = NormalisingFlow(dims=2, transform=flow, base_dist=self.base_dist)
-        sample, sample_prob, detJ = nf.reverse_sample(N)
+        sample, sample_prob, detJ = nf.forward_sample(N)
         
         global visualise  
         if visualise:
@@ -197,7 +195,8 @@ class TwoMoonsTest(unittest.TestCase):
                        cmap='rainbow')
             axs[2].set_title('Normalised Transform')
   
-      
+    
+@unittest.skipIf(dev, "Development mode on")
 class CNFTests(unittest.TestCase):
     
     """
@@ -268,7 +267,7 @@ class CNFTests(unittest.TestCase):
 
         #Create and check the cnf output vs an ivp_solver:
         cnf = CNFTransform(self.network)
-        cnf_state, cnf_log_prob = cnf(self.data)
+        cnf_state, cnf_log_prob = cnf.tforward(self.data)
         
         cnf_output = torch.concat([cnf_state,
                                    cnf_log_prob.reshape(-1, 1)], axis=-1)
@@ -311,61 +310,12 @@ class CNFTests(unittest.TestCase):
         cnf = CNFTransform(self.network)
         pf = PlanarTransform(2)
         
-        cnf_out, cnf_log_prob = cnf(self.data)
-        pf_out, pf_log_prob = pf(self.data)
+        cnf_out, cnf_log_prob = cnf.tforward(self.data)
+        pf_out, pf_log_prob = pf.tforward(self.data)
         
         #Ensure dimensionality of outputs correct
         self.assertTrue(cnf_out.shape == pf_out.shape)
         self.assertTrue(cnf_log_prob.shape == pf_log_prob.shape)
-        
-    @unittest.SkipTest
-    def test_cnf_prob_output(self):
-                
-        #Create CNFTransform:
-        cnf = CNFTransform(self.simple)
-        
-        #Pass in data:
-        XX, YY = np.meshgrid(np.linspace(-5, 5, 100), np.linspace(-5, 5, 100))
-
-        grid_data = torch.FloatTensor(np.stack((XX.ravel(), YY.ravel())).T)
-        _, delta_logp = cnf(grid_data)
-        
-        #Calc  logp_x = p_z0.log_prob(z_t0).to(device) - logp_diff_t0.view(-1)
-        logpu = self.base_dist.log_prob(grid_data)
-        logpx = (logpu - delta_logp).reshape(XX.shape)
-    
-        fig, axs = plt.subplots(ncols=2, figsize=(10,5))
-        axs[0].contourf(XX, YY, logpu.detach().reshape(XX.shape).exp(), cmap='Blues')
-        axs[1].contourf(XX, YY, logpx.detach().exp(), cmap='Blues')        
-        
-        plt.show()
-        
-        #integrate over normal dist:
-        base_dist_func = lambda x,y: self.base_dist.log_prob(
-            torch.tensor([x,y])).exp()
-
-        #Check the distribution integrates to 1:            
-        output, _ = ss.integrate.dblquad(base_dist_func, 
-                                         a=-4, b=4,
-                                         gfun=lambda x: -4, 
-                                         hfun=lambda x: 4)
-        
-        print('\n base dist integral', output)
-        
-        def output_dist_func(x, y):
-            
-            data_point = torch.tensor([[x,y]])
-            logpu = self.base_dist.log_prob(data_point)
-            _, delta_logp = cnf(data_point)
-            
-            return (logpu - delta_logp).exp()
-        
-        output, _ = ss.integrate.dblquad(output_dist_func, 
-                                         a=-4, b=4,
-                                         gfun=lambda x: -4, 
-                                         hfun=lambda x: 4)
-
-        print('\n output dist integral', output)
         
         
 class constant(nn.Module):
@@ -397,8 +347,33 @@ class simple_net(nn.Module):
             return self.net(x[:,:-1])
         else:
             return self.net(x)
+        
+        
+class cnf_two_moons_net(nn.Module):
+    
+    def __init__(self):
+        super().__init__()
+        
+        self.lin1 = nn.Linear(3,31)
+        self.lin2 = nn.Linear(32,31)
+        self.lin3 = nn.Linear(32,2)
+        self.softp = nn.Tanh()
+        
+    def forward(self, x):
+        
+        #final dimension is concat time dim:
+        t = x[:,-1:]
+        
+        x = self.softp(self.lin1(x))
+        x = torch.concat([x, t], axis=-1)
+        x = self.softp(self.lin2(x))
+        x = torch.concat([x,t], axis=-1)
+        x = self.softp(self.lin3(x))
+        
+        return x
+        
 
-@unittest.SkipTest
+
 class CNFTestsTraining(unittest.TestCase):
 
     def setUp(self):
@@ -408,16 +383,20 @@ class CNFTestsTraining(unittest.TestCase):
         self.base_dist = dist.MultivariateNormal(loc=base_mean,
                                             covariance_matrix=base_sigma)
         
-        moon_data, _ = make_moons(n_samples=N, noise=0.01)
+        moon_data, _ = make_moons(n_samples=N, noise=0.06)
         self.data = torch.tensor(moon_data, dtype=torch.float)
                 
         
         self.simple = simple_net(t=True)
         
         self.network = nn.Sequential(
-                        nn.Linear(3,3),
-                        nn.Tanh(),
-                        nn.Linear(3,2))
+                        nn.Linear(3,32),
+                        nn.Softplus(),
+                        nn.Linear(32,32),
+                        nn.Softplus(),
+                        nn.Linear(32,2))
+        
+        self.two_moon_net = cnf_two_moons_net()
         
         def init_weights(m):
             if isinstance(m, nn.Linear):
@@ -437,7 +416,7 @@ class CNFTestsTraining(unittest.TestCase):
             axs.set_title('TwoMoonsTests.{} training loss'.format(name))
     
             # Plot actual and 'found' distributions:
-            plot_density_contours(lambda x: np.exp(nf.density_estimation_forward(x)),
+            plot_density_contours(lambda x: np.exp(nf.density_estimation_reverse(x)),
                                   'TwoMoonsTests.{} backward dist'.format(name))
         
     @unittest.SkipTest
@@ -449,52 +428,14 @@ class CNFTestsTraining(unittest.TestCase):
         cnf = CNFTransform(self.simple)
         nf = NormalisingFlow(dims=2, transform=cnf,
                              base_dist=self.base_dist, verbose=True)
-        loss = nf.forward_KL(data, epochs=500)
+        loss = nf.sample_KL(data, epochs=5000)
         
         self.visualisations(loss, nf, 'test_cnf_gaussian')
 
-        print(cnf.node.func.state_dict())
+        #Run the cnf normalisation using the reverse functionality:
+        base_samples = self.base_dist.sample((10000,))
         
-        #where could -'ve objective arise?
-        u, logdetJ = nf.transform(self.data)
-        
-        #prob under base dist:
-        probu = self.base_dist.log_prob(u)
-        
-        # Check Jacobian:
-        print(probu[:10])
-        print(logdetJ[:10])  
-        
-        fig, axs = plt.subplots()
-        axs.hist(probu.detach())
-        axs.hist(logdetJ.detach())
-        
-    @unittest.SkipTest
-    def test_two_moons_cnf(self):
-        
-        cnf = CNFTransform(self.simple)
-        nf = NormalisingFlow(dims=2, transform=cnf,
-                             base_dist=self.base_dist, verbose=True)
-        loss = nf.forward_KL(self.data, epochs=2000)
-        
-        self.visualisations(loss, nf, 'test_cnf_gaussian')
-
-        print(cnf.node.func.state_dict())
-        
-
-    def test_cnf_normalisiation(self):
-        
-        N_points = 5000
-        
-        #sample from base distribution:
-        base_samples = self.base_dist.sample((N_points,))
-    
-        #Create flow and set parameters:        
-        cnf = CNFTransform(self.network)
-        
-        #Create flow and pass through single planar transform:
-        nf = NormalisingFlow(dims=2, transform=cnf, base_dist=self.base_dist)
-        sample, sample_prob, detJ = nf.reverse_sample(N_points)
+        sample, sample_prob, detJ = nf.forward_sample(10000)
                 
         global visualise  
         if visualise:
@@ -514,6 +455,85 @@ class CNFTestsTraining(unittest.TestCase):
             axs[1].set_title('CNF Transformed (prob unadjusted)')
             
             sample_prob_new = sample_prob + detJ.detach().reshape(-1)
+
+            axs[2].hexbin(sample[:,0], 
+                       sample[:,1],
+                       C=sample_prob_new.exp(),
+                       cmap='rainbow')
+            axs[2].set_title('CNF Transform (prob adjusted)')
+        
+    
+    def test_two_moons_cnf(self):
+        
+        cnf = CNFTransform(self.network)
+        nf = NormalisingFlow(dims=2, transform=cnf,
+                             base_dist=self.base_dist, verbose=True)
+        loss = nf.sample_KL(self.data, epochs=15000)
+        
+        self.visualisations(loss, nf, 'test_cnf_two_moons')
+
+        base_samples = self.base_dist.sample((10000,))
+        
+        sample, sample_prob, detJ = nf.forward_sample(10000)
+                
+        global visualise  
+        if visualise:
+            
+            fig, axs = plt.subplots(ncols=3, figsize=(15,5))
+            
+            axs[0].hexbin(base_samples[:,0], 
+                       base_samples[:,1],
+                       C=self.base_dist.log_prob(base_samples).exp(),
+                       cmap='rainbow')
+            axs[0].set_title('Base Distribution')
+            
+            axs[1].hexbin(sample[:,0],
+                       sample[:,1],
+                       C=sample_prob.exp(),
+                       cmap='rainbow')
+            axs[1].set_title('CNF Transformed (prob unadjusted)')
+            
+            sample_prob_new = sample_prob - detJ.detach().reshape(-1)
+
+            axs[2].hexbin(sample[:,0], 
+                       sample[:,1],
+                       C=sample_prob_new.exp(),
+                       cmap='rainbow')
+            axs[2].set_title('CNF Transform (prob adjusted)')
+        
+    @unittest.SkipTest
+    def test_cnf_normalisiation(self):
+        
+        N_points = 5000
+        
+        #sample from base distribution:
+        base_samples = self.base_dist.sample((N_points,))
+    
+        #Create flow and set parameters:        
+        cnf = CNFTransform(self.network)
+        
+        #Create flow and pass through single planar transform:
+        nf = NormalisingFlow(dims=2, transform=cnf, base_dist=self.base_dist)
+        sample, sample_prob, detJ = nf.forward_sample(N_points)
+                
+        global visualise  
+        if visualise:
+            
+            fig, axs = plt.subplots(ncols=3, figsize=(15,5))
+            
+            axs[0].hexbin(base_samples[:,0], 
+                       base_samples[:,1],
+                       C=self.base_dist.log_prob(base_samples).exp(),
+                       cmap='rainbow')
+            axs[0].set_title('Base Distribution')
+            
+            axs[1].hexbin(sample[:,0],
+                       sample[:,1],
+                       C=sample_prob.exp(),
+                       cmap='rainbow')
+            axs[1].set_title('CNF Transformed (prob unadjusted)')
+            
+            sample_prob_new = sample_prob - detJ.detach().reshape(-1)
 
             axs[2].hexbin(sample[:,0], 
                        sample[:,1],
