@@ -270,27 +270,39 @@ class CNFTests(unittest.TestCase):
         cnf = CNFTransform(self.network)
         cnf_state, cnf_log_prob = cnf(self.data)
         
+        cnf_output = torch.concat([cnf_state,
+                                   cnf_log_prob.reshape(-1, 1)], axis=-1)
+        
         #Check ivp_scipy solver:
         ode_func_base = normalisingODEF(self.network)
         
         init_data = torch.concat([self.data, 
                                   torch.zeros((self.data.shape[0], 1))],
                                  axis=-1).float()
-        
-        print(init_data[:2], self.data[:2])
-        
+                
         ode_func = lambda t, x: ode_func_base(torch.tensor(t).float(),
                                            torch.tensor(x).float())\
                     .detach().numpy()
                          
         scipy_output = scipySolver.integrate([0,1], init_data, 3, ode_func)
-        
-        #Compare solutions
-        print('\n data', self.data)
-        print('ivp_solver input', scipy_output[1][-1, :2])
-        print('ivp_solver time_steps', scipy_output[2])
+        scipy_input = torch.tensor(scipy_output[-1]['y'][:,0].reshape(-1,3))
+        scipy_output = torch.tensor(scipy_output[-1]['y'][:,-1].reshape(-1,3))               
         
         
+        #compare init points -> ensure input points are close
+        input_assertion = init_data - scipy_input
+        self.assertTrue(input_assertion.max() <= 1e-4)
+        
+        #compare output points:
+        print('\n ivp_solver output', scipy_output)
+        print('\n naive solver output', cnf_output)
+        
+        #understand differences:
+        output_assertion_1 = scipy_output[:,:-1] - cnf_output[:,:-1]
+        output_assertion_2 = scipy_output[:,-1] - cnf_output[:,-1]
+        
+        self.assertTrue(output_assertion_1.max() < 1e-4)
+        self.assertTrue(output_assertion_2.max() < 1e-4)
         
 
     def test_cnf_output_dims(self):
