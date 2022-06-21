@@ -33,10 +33,14 @@ for i in range(outputs.shape[0]):
 #Scipy wrapper
 output = scipySolver.integrate([0, 10], z0, 1, func, t_eval=np.linspace(0, 10, 500))
 
+print('init_points', z0)
+print('init_sol', output[-1]['y'][:,0])
+
 for i in range(output[-1]['y'].shape[0]):
     axs.plot(output[-1]['t'], output[-1]['y'][i,:], c='b')
     axs.scatter(10.0*np.ones_like(output[-1]['y'][:,-1]), #pick out last point
                 output[-1]['y'][:,-1], c='b', marker="x")
+    
     
 #True Solution:
 intercept = z0 + 1

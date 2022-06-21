@@ -50,7 +50,7 @@ class scipySolver():
             
             
         #record the batch size
-        batch = x_init.shape[0]
+        #batch = x_init.shape[0]
             
         #Run the solver_ivp function:
         solution = solve_ivp(func,
@@ -60,7 +60,7 @@ class scipySolver():
                               t_eval=t_eval)
         
         #re map the 1-d solution back to input dims:
-        x_out = solution['y'].reshape(-1, batch, dims)
+        x_out = solution['y']
         t = solution['t']
         success = solution['success']
         
