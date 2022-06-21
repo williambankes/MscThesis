@@ -12,15 +12,19 @@ import torch.nn as nn
 class NormalisingFlow():
     
     
-    def __init__(self, dims, transform, base_dist):
+    def __init__(self, dims, transform, base_dist, 
+                 verbose=True, verbose_every=100):
         
         
         self.transform = transform
         self.dims = dims
-        
         self.base_dist = base_dist
+        
         #ensure dimensionality of base_dist is correct:
-            
+        
+        self.verbose = verbose
+        self.verbose_every = verbose_every
+        
             
     def reverse_KL(self, density_func, epochs, n_samples=100):
         
@@ -50,7 +54,7 @@ class NormalisingFlow():
             optim.step()
             
             losses.append(kl_div.detach().numpy())
-            if epoch % 100 == 0:
+            if epoch % 100 == 0 and self.verbose:
                 print('NF reverse KL divergence, iter:{} KL div:{}'.\
                       format(epoch, losses[-1]))
                     
@@ -67,7 +71,9 @@ class NormalisingFlow():
         
         """
         forward_KL: Applies equation (13) from [https://arxiv.org/pdf/1912.02762.pdf].
-        Takes samples from our unknown distribution and applies 
+        Takes samples from our unknown distribution and applies.
+        
+        Here transform equivalent to = f^-1(x)
         
         """        
                
@@ -83,14 +89,14 @@ class NormalisingFlow():
             #calc log_prob_u under base dist:                
             log_probu = self.base_dist.log_prob(u)            
             kl_div = -1 * (log_probu + log_detJ).mean()
-                                      
+                    
             #Optimise:
             optim.zero_grad()
             kl_div.backward()
             optim.step()
             
             losses.append(kl_div.detach().numpy())
-            if epoch % 100 == 0:
+            if epoch % self.verbose_every == 0 and self.verbose:
                 print('NF forward KL divergence, iter:{} KL div:{}'.\
                       format(epoch, losses[-1]))
             
@@ -105,7 +111,7 @@ class NormalisingFlow():
     
 class CompositeFlow(nn.Module):
     
-    def __init__(self, dims, Transform, num):
+    def __init__(self, dims, transform, num):
         
         super().__init__()
         
@@ -114,7 +120,7 @@ class CompositeFlow(nn.Module):
         self.flows = nn.ModuleList()
         
         for i in range(num):
-            self.flows.append(Transform(dims))
+            self.flows.append(transform(dims))
 
     def forward(self, z):
         
