@@ -373,7 +373,7 @@ class cnf_two_moons_net(nn.Module):
         return x
         
 
-
+@unittest.skipIf(dev, "Development mode on")
 class CNFTestsTraining(unittest.TestCase):
 
     def setUp(self):
@@ -468,7 +468,7 @@ class CNFTestsTraining(unittest.TestCase):
         cnf = CNFTransform(self.network)
         nf = NormalisingFlow(dims=2, transform=cnf,
                              base_dist=self.base_dist, verbose=True)
-        loss = nf.sample_KL(self.data, epochs=15000)
+        loss = nf.sample_KL(self.data, epochs=5000)
         
         self.visualisations(loss, nf, 'test_cnf_two_moons')
 
