@@ -50,23 +50,43 @@ class AutoEncoder(pl.LightningModule):
         #reconstruction loss:
         loss = nn.MSELoss()(decoded, x)
         
+        #Log and return metrics:
+        self.log("training loss", loss.detach().item())
         return {'loss': loss}
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.model.parameters(), lr=0.001)
+    
 
 if __name__ == '__main__':
     
-    from AutoEncodedFlows.models import CNFAutoEncoderSCurve
+    from AutoEncodedFlows.models import CNFAutoEncoderSCurve, CNFAutoEncoderFlowSCurve
     from AutoEncodedFlows.datasets import SCurveDataset
+    
+    import wandb
+    from pytorch_lightning.loggers import WandbLogger
+
+    #Create wandb logger:
+    #wandb.init(project="AutoEncodingFlows")
+    wandb_logger = WandbLogger(project="AutoEncodingFlows", entity="william_bankes")
     
     #Set cpu core threads
     torch.set_num_threads(14)
     
     s_curve_dataset = SCurveDataset(10_000)
-    s_curve_dataloader = data.DataLoader(s_curve_dataset, batch_size=254, shuffle=True)
+    s_curve_dataloader = data.DataLoader(s_curve_dataset, batch_size=254,
+                                         shuffle=True)
     
-    autoencoder = AutoEncoder(CNFAutoEncoderSCurve())
-    trainer = pl.Trainer(max_epochs=1)
-    trainer.fit(autoencoder, train_dataloaders=s_curve_dataloader)
+    try:
+        #autoencoder = AutoEncoder(CNFAutoEncoderSCurve())    
+        #trainer = pl.Trainer(gpus=1, max_epochs=1, logger=wandb_logger)
+        #trainer.fit(autoencoder, train_dataloaders=s_curve_dataloader)
+        
+        autoencoder_flow = AutoEncoder(CNFAutoEncoderFlowSCurve())
+        trainer = pl.Trainer(gpus=1, max_epochs=1, logger=wandb_logger)
+        trainer.fit(autoencoder_flow, train_dataloaders=s_curve_dataloader)
+    
+    finally:
+        #If interrupted shut down wandb process
+        wandb.finish()
 
