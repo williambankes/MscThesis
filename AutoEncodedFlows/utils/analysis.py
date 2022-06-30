@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Fri Jun 24 10:39:38 2022
+Created on Thu Jun 30 14:23:20 2022
 
 @author: William
 """
@@ -9,65 +9,9 @@ from matplotlib import ticker
 import matplotlib.pyplot as plt
 
 import wandb
-
 import torch
-import torch.utils.data as data
-import pytorch_lightning as pl
 
 
-class Experiment:
-    
-    def __init__(self, project, notes, tags, learner, model, dataset, 
-                 trainer_args, model_args, dataset_args, dataloader_args):
-        
-        #Setup configs:
-        configs = {'Learner': learner.__name__,
-                   'Model'  : model.__name__,
-                   'Dataset': dataset.__name__}
-        configs.update(model_args)
-        configs.update(trainer_args)
-        configs.update(dataset_args)
-        configs.update(dataloader_args)
-        
-        #May restructure depending on project scope:
-        self.experiment_name = "{}_{}".format(configs['Model'],
-                                              configs['Dataset'])
-        
-        #Setup model and trainer:
-        self.runner = wandb.init(
-                        project=project,
-                        name=self.experiment_name,
-                        notes=notes,
-                        tags=tags,
-                        config=configs)
-                
-        self.model = model(**model_args)
-        self.learner = learner(self.model) #Can add learner_args...
-        self.trainer = pl.Trainer(**trainer_args)
-        self.dataloader = data.DataLoader(dataset(**dataset_args),
-                                          **dataloader_args)
-                    
-    def run(self):
-        
-#        try:
-        self.trainer.fit(self.learner, train_dataloaders=self.dataloader)
-#        except:
-#            self.runner.finish()
-
-        
-    def analyse(self, analyse_funcs):
-        
-        for i, func in enumerate(analyse_funcs):
-            output = func(self.trainer.model, self.dataloader)
-            self.runner.log(output)
-            
-    def finish(self):
-
-        self.runner.finish()
-        
-            
-    
-        
 def wandb_3d_point_cloud(model, dataloader):
     """
     Creates a coloured Object3D wandb log   
@@ -104,7 +48,7 @@ def wandb_3d_point_cloud_scurveAE(model, dataloader):
     data, labels = dataset.get_dataset()
     
     #Specific model analysis
-    encoded3D = model.model.node_3_encode(data)[-1][-1]
+    encoded3D = model.model.encode_flow[0](data)
     colour = label_to_colour(labels[:,None])
     
     recon_points = torch.concat([encoded3D, colour], axis=-1).detach().numpy()
@@ -112,7 +56,6 @@ def wandb_3d_point_cloud_scurveAE(model, dataloader):
     return {'encoded3D': wandb.Object3D(recon_points)}   
     
     
-   
 def label_to_colour(labels):
     
     red = torch.tensor([255, 0 ,0])
@@ -163,3 +106,15 @@ def plot_3d(points, points_color, title):
     plt.show()
     
     return fig
+
+
+
+
+
+
+
+
+
+
+    
+    
