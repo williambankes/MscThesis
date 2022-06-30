@@ -5,8 +5,6 @@ Created on Thu Jun 23 14:02:07 2022
 @author: William
 """
 
-import numpy as np
-
 import torch
 import torch.nn as nn
 

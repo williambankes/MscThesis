@@ -10,6 +10,8 @@ Define Pytorch Lightning methods to train the model
 
 import pytorch_lightning as pl
 
+import wandb
+
 import torch
 import torch.nn as nn
 import torch.utils.data as data
@@ -34,9 +36,16 @@ class AutoEncoder(pl.LightningModule):
         """
         
         super().__init__()
+        self.__name__ = 'AutoEncoder'
         self.model = model
+        wandb.watch(self.model)
 
-
+    def encode(self, x):
+        return self.model.encode(x)
+    
+    def decode(self, x):
+        return self.model.decode(x)
+        
     def forward(self, x):
         return self.model(x)
 
@@ -50,8 +59,12 @@ class AutoEncoder(pl.LightningModule):
         #reconstruction loss:
         loss = nn.MSELoss()(decoded, x)
         
+        #clever logging setup in the training step
+        
         #Log and return metrics:
-        self.log("training loss", loss.detach().item())
+        wandb.log({'training loss': loss.detach().item()})
+        wandb.log({'epoch': self.current_epoch})
+        
         return {'loss': loss}
 
     def configure_optimizers(self):
@@ -62,31 +75,48 @@ if __name__ == '__main__':
     
     from AutoEncodedFlows.models import CNFAutoEncoderSCurve, CNFAutoEncoderFlowSCurve
     from AutoEncodedFlows.datasets import SCurveDataset
+    from AutoEncodedFlows.utils import Experiment, wandb_3d_point_cloud, wandb_3d_point_cloud_scurveAE
     
-    import wandb
-    from pytorch_lightning.loggers import WandbLogger
-
-    #Create wandb logger:
-    #wandb.init(project="AutoEncodingFlows")
-    wandb_logger = WandbLogger(project="AutoEncodingFlows", entity="william_bankes")
-    
-    #Set cpu core threads
     torch.set_num_threads(14)
     
-    s_curve_dataset = SCurveDataset(10_000)
-    s_curve_dataloader = data.DataLoader(s_curve_dataset, batch_size=254,
-                                         shuffle=True)
+    trainer_args = {'gpus':1,
+                    'max_epochs':20,
+                    'enable_checkpointing':False}
+    model_args = {}
+    dataset_args = {'n_samples':10_000}
+    dataloader_args = {'batch_size':508,
+                       'shuffle':True}
     
-    try:
-        #autoencoder = AutoEncoder(CNFAutoEncoderSCurve())    
-        #trainer = pl.Trainer(gpus=1, max_epochs=1, logger=wandb_logger)
-        #trainer.fit(autoencoder, train_dataloaders=s_curve_dataloader)
-        
-        autoencoder_flow = AutoEncoder(CNFAutoEncoderFlowSCurve())
-        trainer = pl.Trainer(gpus=1, max_epochs=1, logger=wandb_logger)
-        trainer.fit(autoencoder_flow, train_dataloaders=s_curve_dataloader)
+    exp1 = Experiment(project='AutoEncodingFlows',
+                      notes='lr=0.001',
+                      tags=['MscThesis'],
+                      learner=AutoEncoder,
+                      model=CNFAutoEncoderSCurve,
+                      dataset=SCurveDataset,
+                      trainer_args=trainer_args,
+                      model_args=model_args,
+                      dataset_args=dataset_args,
+                      dataloader_args=dataloader_args)
     
-    finally:
-        #If interrupted shut down wandb process
-        wandb.finish()
 
+    exp1.run()
+    exp1.analyse([wandb_3d_point_cloud, wandb_3d_point_cloud_scurveAE])
+    exp1.finish()
+    
+    """    
+    
+    exp2 = Experiment(project='AutoEncodingFlows',
+                      notes='Testing Experiment Class',
+                      tags=['MscThesis'],
+                      learner=AutoEncoder,
+                      model=CNFAutoEncoderFlowSCurve,
+                      dataset=SCurveDataset,
+                      trainer_args=trainer_args,
+                      model_args=model_args,
+                      dataset_args=dataset_args,
+                      dataloader_args=dataloader_args)
+    
+    exp2.run()
+    exp2.analyse([wandb_3d_point_cloud])
+    exp2.finish()
+    """
