@@ -41,11 +41,14 @@ class SequentialFlow(nn.Sequential):
 
 class Projection1D(nn.Module):
     
-    def __init__(self, dims_in, dims_out, trainable=False):
+    def __init__(self, dims_in, dims_out, rotation=False, trainable=False):
         """
         Projection from lower to higher dimensional space. Inverse is calculated
         using the pseudo inverse. Designed for data of dimensions (-1, D) where
-        D is the dims_in
+        D is the dims_in.
+        
+        -> rotation: https://math.stackexchange.com/questions/2369940/parametric-representation-of-orthogonal-matrices
+        i.e. parameterise a rotational matrix via matrix exponential of skew symmetric matrix
         
         Parameters
         ----------
@@ -77,8 +80,12 @@ class Projection1D(nn.Module):
                                               torch.zeros((dims_out, dims_in - dims_out))],
                                              axis=-1).T
         
+        if rotation: projection_matrix 
+        
+        
         if trainable: self.projection = nn.parameter.Parameter(projection_matrix)
         else:         self.projection = nn.parameter.Parameter(projection_matrix, requires_grad=False)   
+        
         
         self.trainable, self.dims_in, self.dims_out = trainable, dims_in, dims_out
         self._str = "Projection1D(dims_in={}, dims_out={}, trainable={})".\
@@ -136,6 +143,8 @@ class GradientNetwork(nn.Module):
     def __init__(self, dims, hidden_dim=32):
         """
         Simple Network that defines the vector field of the ODE
+        
+        #Add time and more complexity
 
         Parameters
         ----------
@@ -179,32 +188,27 @@ class CNFAutoEncoderSCurve(nn.Module):
         grad_net_3_encode = GradientNetwork(3, 16)
         grad_net_2_encode = GradientNetwork(2, 8)
         
-        self.node_3_encode = NeuralODE(grad_net_3_encode, **ode_solver_args)
-        self.projection_encode = Projection1D(3,2)
-        self.node_2_encode = NeuralODE(grad_net_2_encode, **ode_solver_args)
+        self.encode_flow = nn.Sequential(
+                            NeuralODEWrapper(grad_net_3_encode, **ode_solver_args),
+                            Projection1D(3,2, trainable=True),
+                            NeuralODEWrapper(grad_net_2_encode, **ode_solver_args))
         
         #decoder layers
         grad_net_3_decode = GradientNetwork(3, 16)
         grad_net_2_decode = GradientNetwork(2, 8)
         
-        self.node_3_decode = NeuralODE(grad_net_3_decode, **ode_solver_args)
-        self.projection_decode = Projection1D(2, 3)
-        self.node_2_decode = NeuralODE(grad_net_2_decode, **ode_solver_args)
-
+        self.decode_flow = nn.Sequential(
+                            NeuralODEWrapper(grad_net_2_decode, **ode_solver_args),
+                            Projection1D(2,3, trainable=True),
+                            NeuralODEWrapper(grad_net_3_decode, **ode_solver_args))
+        
     def encode(self, x):
         
-        _, x = self.node_3_encode(x)
-        x    = self.projection_encode(x[-1])
-        _, x = self.node_2_encode(x)
-        
-        return x[-1]
+        return self.encode_flow(x)
 
     def decode(self, x):
-        _, x = self.node_2_decode(x)
-        x    = self.projection_decode(x[-1])
-        _, x = self.node_3_decode(x)
-
-        return x[-1]
+        
+        return self.decode_flow(x)
     
     
 class CNFAutoEncoderFlowSCurve(nn.Module):
