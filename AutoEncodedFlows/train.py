@@ -82,7 +82,7 @@ if __name__ == '__main__':
                     'max_epochs':100,
                     'enable_checkpointing':False}
     model_args = {'trainable':False,
-                  'orthogonal':True,
+                  'orthogonal':False,
                   'time_grad':True,
                   'hidden_dim_state':32,
                   'hidden_dim_latent':16,
