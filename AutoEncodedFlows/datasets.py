@@ -5,8 +5,6 @@ Created on Thu Jun 23 16:48:15 2022
 @author: William
 """
 
-import numpy as np
-
 import torch
 from torch.utils import data
 
@@ -14,7 +12,7 @@ from sklearn import datasets
 
 class SCurveDataset(data.Dataset):
     
-    def __init__(self, n_samples, noise=0.0):
+    def __init__(self, n_samples, extra_dims=0, noise=0.0):
         
         self.n_samples = n_samples
         self.data, self.labels = datasets.make_s_curve(n_samples, noise=0.0)
@@ -22,6 +20,11 @@ class SCurveDataset(data.Dataset):
         self.labels = torch.tensor(self.labels).float()
                   
         self.data = self.data + torch.tensor([0., -1., 0.])
+        
+        #extra dimensionality:
+        zeros = torch.zeros((self.data.shape[0], extra_dims))
+        self.data = torch.concat([self.data, zeros], axis=-1)
+        self.extra_dims=extra_dims
         
     def __len__(self):
         return self.n_samples
@@ -31,8 +34,6 @@ class SCurveDataset(data.Dataset):
     
     
     def get_dataset(self, colours=False):
-        
-        
         return self.data, self.labels
         
     
