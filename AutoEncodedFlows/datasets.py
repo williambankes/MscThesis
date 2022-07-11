@@ -5,6 +5,8 @@ Created on Thu Jun 23 16:48:15 2022
 @author: William
 """
 
+import numpy as np
+
 import torch
 from torch.utils import data
 
@@ -18,6 +20,8 @@ class SCurveDataset(data.Dataset):
         self.data, self.labels = datasets.make_s_curve(n_samples, noise=0.0)
         self.data = torch.tensor(self.data).float()
         self.labels = torch.tensor(self.labels).float()
+                  
+        self.data = self.data + torch.tensor([0., -1., 0.])
         
     def __len__(self):
         return self.n_samples
