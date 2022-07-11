@@ -101,38 +101,46 @@ class GradientNetwork(nn.Module):
 class CNFAutoEncoderSCurve(nn.Module):
     
     def __init__(self, trainable=False, orthogonal=False, time_grad=False,
+                 input_dims=3, latent_dims=2, 
                  hidden_dim_state=16, hidden_dim_latent=8,
                  t_span=torch.tensor([0.,1.])):
         super().__init__()
         
         #change args to speed up network?
-        ode_solver_args = {'sensitivity':'adjoint',
+        ode_solver_args = {#'sensitivity':'adjoint',
+                           'sensitivity':'autograd',
                            'solver':'dopri5',
                            'atol':1e-4,
                            'rtol':1e-4}
         
         #encoder layers
-        grad_net_3_encode = GradientNetwork(dims=3, hidden_dim=hidden_dim_state,
+        grad_net_3_encode = GradientNetwork(dims=input_dims,
+                                            hidden_dim=hidden_dim_state,
                                             time_grad=time_grad)
-        grad_net_2_encode = GradientNetwork(dims=2, hidden_dim=hidden_dim_latent,
+        grad_net_2_encode = GradientNetwork(dims=latent_dims,
+                                            hidden_dim=hidden_dim_latent,
                                             time_grad=time_grad)
                 
         self.encode_flow = nn.Sequential(
                             NeuralODEWrapper(grad_net_3_encode, t_span=t_span,
                                              **ode_solver_args),
-                            Projection1D(3,2, trainable=trainable, 
+                            Projection1D(input_dims, latent_dims, trainable=trainable, 
                                              orthog=orthogonal),
                             NeuralODEWrapper(grad_net_2_encode, t_span=t_span,
                                              **ode_solver_args))
         
         #decoder layers
-        grad_net_3_decode = GradientNetwork(3, 16)
-        grad_net_2_decode = GradientNetwork(2, 8)
+        grad_net_3_decode = GradientNetwork(input_dims,
+                                            hidden_dim=hidden_dim_state,
+                                            time_grad=time_grad)
+        grad_net_2_decode = GradientNetwork(latent_dims, 
+                                            hidden_dim=hidden_dim_state,
+                                            time_grad=time_grad)
         
         self.decode_flow = nn.Sequential(
                             NeuralODEWrapper(grad_net_2_decode, t_span=t_span,
                                              **ode_solver_args),
-                            Projection1D(2,3, trainable=trainable, 
+                            Projection1D(latent_dims, input_dims, trainable=trainable, 
                                              orthog=orthogonal),
                             NeuralODEWrapper(grad_net_3_decode, t_span=t_span,
                                              **ode_solver_args))
