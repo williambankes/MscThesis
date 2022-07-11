@@ -27,6 +27,7 @@ class Experiment:
         self.experiment_name = "{}_{}".format(configs['Model'],
                                               configs['Dataset'])
         
+        print('Creating Experiment:{}'.format(self.experiment_name))
         #Setup model and trainer:
         self.runner = wandb.init(
                         project=project,
@@ -44,14 +45,28 @@ class Experiment:
     def run(self):
         
         self.trainer.fit(self.learner, train_dataloaders=self.dataloader)
-
-
-    def analyse(self, analyse_funcs):
+        
+            
+    def wandb_analyse(self, analyse_funcs):
         
         for i, func in enumerate(analyse_funcs):
             output = func(self.trainer.model, self.dataloader)
             self.runner.log(output)
             
+    def analyse(self, analyse_funcs):
+        
+        for i, func in enumerate(analyse_funcs):
+            output = func(self.trainer.model, self.dataloader)
+            
     def finish(self):
-
+        print('Experiment:{} finishing'.format(self.experiment_name))
         self.runner.finish()
+        
+        
+def get_experiment_notes():
+    
+    notes = input("Experiment Note:")
+    
+    #assertions here
+    
+    return notes
