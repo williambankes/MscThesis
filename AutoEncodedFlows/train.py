@@ -70,7 +70,7 @@ class AutoEncoder(pl.LightningModule):
 
 if __name__ == '__main__':
     
-    from AutoEncodedFlows.models import CNFAutoEncoderSCurve, CNFAutoEncoderFlowSCurve
+    from AutoEncodedFlows.models import CNFAutoEncoderSCurve
     from AutoEncodedFlows.datasets import SCurveDataset
     from AutoEncodedFlows.utils.experiments import Experiment, get_experiment_notes
     from AutoEncodedFlows.utils.analysis import wandb_3d_point_cloud, wandb_3d_point_cloud_scurveAE
@@ -81,12 +81,12 @@ if __name__ == '__main__':
     trainer_args = {'gpus':1,
                     'max_epochs':100,
                     'enable_checkpointing':False}
-    model_args = {'trainable':False,
+    model_args = {'trainable':True,
                   'orthogonal':False,
                   'time_grad':True,
                   'hidden_dim_state':32,
                   'hidden_dim_latent':16,
-                  't_span':torch.tensor([0.,2.])}
+                  't_span':torch.tensor([0.,1.])}
     dataset_args = {'n_samples':10_000}
     dataloader_args = {'batch_size':508,
                        'shuffle':True}
