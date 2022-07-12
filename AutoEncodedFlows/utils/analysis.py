@@ -13,41 +13,9 @@ from plotly.subplots import make_subplots
 
 from matplotlib import ticker
 import matplotlib.pyplot as plt
-
-import wandb
 import torch
 
 pio.renderers.default='browser'
-
-
-def wandb_3d_point_cloud(model, dataloader):
-    """
-    Creates a coloured Object3D wandb log   
-
-    Parameters
-    ----------
-    model : Module/LightningModule
-        Module with <encode> and <decode> methods
-    dataloader : DataLoader
-        Dataloader with <get_dataset> method that returns data and a label
-
-    Returns
-    -------
-    dict
-        wandb Object3D logs for the data space and reconstructed space
-    """
-    
-    dataset = dataloader.dataset
-    data, labels = dataset.get_dataset()
-    
-    reconstruction = model.decode(model.encode(data)).detach()    
-    colour = label_to_colour(labels[:, None])
-    
-    data_points = torch.concat([data, colour], axis=-1).detach().numpy()
-    recon_points = torch.concat([reconstruction, colour], axis=-1).detach().numpy()
-    
-    return {'data points': wandb.Object3D(data_points),
-            'reconstruction': wandb.Object3D(recon_points)}
 
 def plotly_3d_point_cloud(model, dataloader):
     
@@ -88,20 +56,7 @@ def plotly_3d_point_cloud(model, dataloader):
     fig.update_layout(title_text="Dataset and Reconstruction")
     fig.show()
     
-    
-def wandb_3d_point_cloud_scurveAE(model, dataloader):
-    
-    dataset = dataloader.dataset
-    data, labels = dataset.get_dataset()
-    
-    #Specific model analysis
-    encoded3D = model.model.encode_flow[0](data)
-    colour = label_to_colour(labels[:,None])
-    
-    recon_points = torch.concat([encoded3D, colour], axis=-1).detach().numpy()
-    
-    return {'encoded3D': wandb.Object3D(recon_points)}  
-
+       
 def plotly_3d_point_cloud_scurveAE(model, dataloader):
     
     #Process data:

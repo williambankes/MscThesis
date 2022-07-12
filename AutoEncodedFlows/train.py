@@ -70,19 +70,22 @@ class AutoEncoder(pl.LightningModule):
 
 if __name__ == '__main__':
     
-    from AutoEncodedFlows.models import CNFAutoEncoderSCurve
+    from AutoEncodedFlows.models import CNFAutoEncoderSCurveAug
     from AutoEncodedFlows.datasets import SCurveDataset
     from AutoEncodedFlows.utils.experiments import Experiment, get_experiment_notes
-    from AutoEncodedFlows.utils.analysis import wandb_3d_point_cloud, wandb_3d_point_cloud_scurveAE
-    from AutoEncodedFlows.utils.analysis import plotly_3d_point_cloud_scurveAE, plotly_latent_space_scurveAE
+    from AutoEncodedFlows.utils.wandb_analysis import wandb_3d_point_cloud,\
+                                                      wandb_3d_point_cloud_scurveAE         
+    from AutoEncodedFlows.utils.analysis import plotly_3d_point_cloud_scurveAE,\
+                                                plotly_latent_space_scurveAE,\
+                                                plotly_3d_point_cloud
     
     torch.set_num_threads(14)
     
     trainer_args = {'gpus':1,
                     'max_epochs':100,
                     'enable_checkpointing':False}
-    model_args = {'trainable':True,
-                  'orthogonal':False,
+    model_args = {'trainable':False,
+                  'orthogonal':True,
                   'time_grad':True,
                   'hidden_dim_state':32,
                   'hidden_dim_latent':16,
@@ -90,14 +93,13 @@ if __name__ == '__main__':
     dataset_args = {'n_samples':10_000}
     dataloader_args = {'batch_size':508,
                        'shuffle':True}
-    
-    
+        
     notes = get_experiment_notes()
     exp1 = Experiment(project='AutoEncodingFlows',
                       notes=notes,
                       tags=['MscThesis', 'AutoEncoder'],
                       learner=AutoEncoder,
-                      model=CNFAutoEncoderSCurve,
+                      model=CNFAutoEncoderSCurveAug,
                       dataset=SCurveDataset,
                       trainer_args=trainer_args,
                       model_args=model_args,
@@ -106,8 +108,8 @@ if __name__ == '__main__':
 
     try:
         exp1.run()
-        exp1.wandb_analyse([wandb_3d_point_cloud, wandb_3d_point_cloud_scurveAE])
-        exp1.analyse([plotly_3d_point_cloud_scurveAE, plotly_latent_space_scurveAE])
+        exp1.wandb_analyse([wandb_3d_point_cloud])   #, wandb_3d_point_cloud_scurveAE])
+        exp1.analyse([plotly_3d_point_cloud, plotly_latent_space_scurveAE])
         exp1.finish()
     finally:
         exp1.finish()
