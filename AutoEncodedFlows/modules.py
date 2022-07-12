@@ -87,9 +87,13 @@ class Projection1D(nn.Module):
                                              axis=-1).T
                 
         if orthog: 
-            self.rotations = nn.parameter.Parameter(torch.randn((dims_in - 1)))
-            self.indices   = np.array([(i+1, i) for i in range(dims_in - 1)]) 
+            #self.rotations = nn.parameter.Parameter(torch.randn((dims_in - 1)))
+            #self.indices   = np.array([(i+1, i) for i in range(dims_in - 1)])
+            self.orthog_params = nn.parameter.Parameter(torch.rand(dims_in, dims_in))
+            self.diag_params = nn.parameter.Parameter(torch.rand(dims_in))
+            self.indices = np.array([(i,i) for i in range(dims_in)])
             
+        
         if trainable: self.projection = nn.parameter.Parameter(projection_matrix)
         else:         self.projection = nn.parameter.Parameter(projection_matrix, requires_grad=False)   
         
@@ -100,10 +104,18 @@ class Projection1D(nn.Module):
                 
     def orthogonal_matrix(self):
         
+        """
         tri_matrix = torch.zeros((self.dims_in, self.dims_in), 
                                  device=self.rotations.device)
         tri_matrix[self.indices[:,0], self.indices[:,1]] = self.rotations
-        skew_matrix = tri_matrix - tri_matrix.T        
+        skew_matrix = tri_matrix - tri_matrix.T 
+        """
+        
+        diag_matrix = torch.zeros((self.dims_in, self.dims_in), 
+                                  device=self.orthog_params.device)
+        diag_matrix[self.indices[:,0], self.indices[:,1]] = self.diag_params
+        tri_matrix = self.orthog_params.triu()
+        skew_matrix = tri_matrix - tri_matrix.T + self.diag_params
         
         return torch.matrix_exp(skew_matrix)
         
@@ -157,3 +169,6 @@ class NeuralODEWrapper(nn.Module):
 
     def inverse(self, x):
         return self.node(x, t_span=self.t_span)[-1]
+    
+    
+    
