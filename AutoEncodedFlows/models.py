@@ -11,6 +11,17 @@ from torchdyn.nn   import DepthCat
 from AutoEncodedFlows.modules import NeuralODEWrapper, Projection1D
 from AutoEncodedFlows.modules import SequentialFlow
 
+class PrintLayer(nn.Module):
+    
+    def __init__(self, name):
+        
+        super().__init__()
+        self.name = name
+        
+    def forward(self, x):
+        print(self.name)
+        return x
+        
 
 class GradientNetwork(nn.Module):
     
@@ -73,6 +84,7 @@ class GradientNetwork(nn.Module):
                         nn.Linear(dims, hidden_dim),
                         nn.BatchNorm1d(hidden_dim),
                         nn.LeakyReLU(0.01),
+                        #PrintLayer(),
                         nn.Linear(hidden_dim, hidden_dim),
                         nn.BatchNorm1d(hidden_dim),
                         nn.LeakyReLU(0.01),
