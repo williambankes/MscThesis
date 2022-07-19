@@ -170,5 +170,29 @@ class NeuralODEWrapper(nn.Module):
     def inverse(self, x):
         return self.node(x, t_span=self.t_span)[-1]
     
+class PrintLayer(nn.Module):
+    
+    def __init__(self, name):
+        """
+        Debugging layer. Returns the input and prints the name given upon
+        instantiation.
+
+        Parameters
+        ----------
+        name : str
+            Debug message to print when called
+
+        Returns
+        -------
+        None.
+
+        """
+        
+        super().__init__()
+        self.name = name
+        
+    def forward(self, x):
+        print(self.name)
+        return x
     
     
