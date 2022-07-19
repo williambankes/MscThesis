@@ -13,12 +13,11 @@ class Experiment:
     
     def __init__(self, project, tags, learner, model, dataset, 
                  trainer_args, learner_args, model_args, dataset_args,
-                 dataloader_args):
+                 dataloader_args, group_name=None, experiment_name=None):
         """
         A class to manage wandb api interactions and pytorch lightning training
         interactions. Input relevant models and parameters then run the .run()
         method to run pytorch lightning model training.
-
 
         Parameters
         ----------
@@ -55,13 +54,16 @@ class Experiment:
         configs.update(dataloader_args)
         
         #May restructure depending on project scope:
-        self.group_name = "{}_{}_{}".format(configs['Learner'],
-                                            configs['Model'],
-                                            configs['Dataset'])
-        self.experiment_name = get_user_input("Enter Experiment Name:")
+        if group_name is None: self.group_name = "{}_{}_{}".format(configs['Learner'],
+                                                                   configs['Model'],
+                                                                   configs['Dataset'])
+        else: self.group_name = group_name
+        
+        if experiment_name is None: self.experiment_name = get_user_input("Enter Experiment Name:")
+        else: self.experiment_name = experiment_name 
+        
         notes = get_user_input("Enter notes on experiment {}:".\
                                format(self.experiment_name))
-        
         print('Creating Experiment:{} in group: {}'.format(self.experiment_name,
                                                            self.group_name))
 

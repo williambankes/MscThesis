@@ -95,7 +95,7 @@ class VectorFieldTime(nn.Module):
 
 
 if __name__ == '__main__':
-            
+                
     trainer_args = {'gpus':1 if torch.cuda.is_available() else 0,
                     'min_epochs':1,
                     'max_epochs':1,
