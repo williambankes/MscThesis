@@ -1,12 +1,9 @@
 # -*- coding: utf-8 -*-
 """
-Created on Thu Jun 23 15:09:31 2022
-
-Define Pytorch Lightning methods to train the model
+Created on Fri Jul 15 14:36:26 2022
 
 @author: William
 """
-
 
 import pytorch_lightning as pl
 
@@ -72,7 +69,7 @@ if __name__ == '__main__':
     
     from AutoEncodedFlows.models import CNFAutoEncoderSCurve
     from AutoEncodedFlows.datasets import SCurveDataset
-    from AutoEncodedFlows.utils.experiments import Experiment, get_experiment_notes
+    from AutoEncodedFlows.utils.experiments import Experiment
     from AutoEncodedFlows.utils.wandb_analysis import wandb_3d_point_cloud,\
                                                       wandb_3d_point_cloud_scurveAE         
     from AutoEncodedFlows.utils.analysis import plotly_3d_point_cloud_scurveAE,\
@@ -81,8 +78,8 @@ if __name__ == '__main__':
     
     torch.set_num_threads(14)
     
-    trainer_args = {'gpus':1,
-                    'max_epochs':100,
+    trainer_args = {'gpus':0,
+                    'max_epochs':1,
                     'enable_checkpointing':False}
     model_args = {'trainable':True,
                   'orthogonal':False,
@@ -94,9 +91,7 @@ if __name__ == '__main__':
     dataloader_args = {'batch_size':508,
                        'shuffle':True}
         
-    notes = get_experiment_notes()
     exp1 = Experiment(project='AutoEncodingFlows',
-                      notes=notes,
                       tags=['MscThesis', 'AutoEncoder'],
                       learner=AutoEncoder,
                       model=CNFAutoEncoderSCurve,
@@ -113,7 +108,3 @@ if __name__ == '__main__':
         exp1.finish()
     finally:
         exp1.finish()
-        
-
-#%%
-exp1.analyse([plotly_3d_point_cloud_scurveAE, plotly_latent_space_scurveAE])
