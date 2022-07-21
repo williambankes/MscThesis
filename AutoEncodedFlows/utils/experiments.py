@@ -13,7 +13,8 @@ class Experiment:
     
     def __init__(self, project, tags, learner, model, dataset, 
                  trainer_args, learner_args, model_args, dataset_args,
-                 dataloader_args, group_name=None, experiment_name=None):
+                 dataloader_args, group_name=None, experiment_name=None,
+                 ask_notes=True):
         """
         A class to manage wandb api interactions and pytorch lightning training
         interactions. Input relevant models and parameters then run the .run()
@@ -57,13 +58,14 @@ class Experiment:
         if group_name is None: self.group_name = "{}_{}_{}".format(configs['Learner'],
                                                                    configs['Model'],
                                                                    configs['Dataset'])
-        else: self.group_name = group_name
+        else:                  self.group_name = group_name
         
         if experiment_name is None: self.experiment_name = get_user_input("Enter Experiment Name:")
-        else: self.experiment_name = experiment_name 
+        else:                       self.experiment_name = experiment_name 
         
-        notes = get_user_input("Enter notes on experiment {}:".\
-                               format(self.experiment_name))
+        if ask_notes: notes = get_user_input("Enter notes on experiment {}:".\
+                                             format(self.experiment_name))
+        else:         notes = "N/A"
         print('Creating Experiment:{} in group: {}'.format(self.experiment_name,
                                                            self.group_name))
 
@@ -167,3 +169,28 @@ def get_user_input(query):
     assert isinstance(notes, str), ""    
     
     return notes
+
+def get_user_confirmation(query):
+    """
+
+    Parameters
+    ----------
+    query : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    None.
+
+    """
+    
+    conf = input(query)
+    assert isinstance(conf, str), "get_user_confirmation: conf must be of type string"
+    conf = str.lower(conf)
+    
+    affirm = ['y', 'yes']
+    
+    if conf in affirm: return True
+    else: return False
+    
+    

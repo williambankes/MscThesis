@@ -4,6 +4,7 @@ Created on Fri Jul 15 15:12:10 2022
 
 @author: William
 """
+import wandb
 import torch
 import torch.nn as nn
 from torch.distributions import MultivariateNormal
@@ -11,9 +12,8 @@ from torchdyn.core import NeuralODE
 from torchdyn.models import CNF, hutch_trace
 from torchdyn.nn import Augmenter
 import pytorch_lightning as pl
-from AutoEncodedFlows.utils.experiments import Experiment
+from AutoEncodedFlows.utils.experiments import Experiment, get_user_confirmation
 from AutoEncodedFlows.datasets import Manifold1DDataset
-
 
 
 class CNFLearner(pl.LightningModule):
@@ -54,8 +54,11 @@ class CNFLearner(pl.LightningModule):
         self.losses = list()
         
     def forward(self, x):
+        
+        #Set model time span forward:
+        self.model[1].t_span = torch.linspace(0, 1, 10)
         return self.model(x)
-
+    
     def training_step(self, batch, batch_idx):
         self.iters += 1 
         t_eval, xtrJ = self.model(batch)
@@ -66,6 +69,10 @@ class CNFLearner(pl.LightningModule):
         if self.current_epoch % 10 == 0:
             self.losses.append(loss.cpu().detach())
         
+        #wandb logging:
+        wandb.log({'training loss': loss.detach().item(),
+                   'epoch': self.current_epoch})
+           
         return {'loss': loss}   
             
     def configure_optimizers(self):
@@ -94,8 +101,31 @@ class VectorFieldTime(nn.Module):
     pass
 
 
+def wandb_manifold1D_scatter_plot(model, dataloader):
+    
+    torch.cuda.empty_cache()
+    
+    #Get Data:
+    dataset = dataloader.dataset
+    data = dataset.get_dataset()    
+    
+    #Move Data and model onto GPU (due to distributions not having device)
+    data = data.cuda() if torch.cuda.is_available() else data.cpu()    
+    model = model.cuda() if torch.cuda.is_available() else model
+    
+    #Process trained model:
+    _, output = model(data)
+    output = output[-1,:,1:].cpu().detach().numpy()
+    
+    #Create wandb log from data:
+    table = wandb.Table(data=output, columns=['x', 'y'])
+    return {"test graph" : wandb.plot.scatter(table, 'x', 'y', title="CNF Transform")}
+
+               
 if __name__ == '__main__':
-                
+    
+    #Wrap into config file or command line params
+    n_iters = 10            
     trainer_args = {'gpus':1 if torch.cuda.is_available() else 0,
                     'min_epochs':1,
                     'max_epochs':1,
@@ -106,20 +136,31 @@ if __name__ == '__main__':
     dataset_args = {'n_samples':10_000}
     dataloader_args = {'batch_size':508,
                        'shuffle':True}
+    
+    #Wrap multiple runs into Experiment Runner? -> probably
+    #Check if test run:
+    test = get_user_confirmation("Is Actual Run (y/n):")
+    
+    for n in range(n_iters):
+        exp = Experiment(project='AutoEncodingFlows',
+                          tags=['MscThesis', 'AutoEncoder'],
+                          learner=CNFLearner,
+                          model=VectorFieldNoTime,
+                          dataset=Manifold1DDataset,
+                          trainer_args=trainer_args,
+                          learner_args=learner_args,
+                          model_args=model_args,
+                          dataset_args=dataset_args,
+                          dataloader_args=dataloader_args,
+                          group_name=None if test else "Test_Run",
+                          experiment_name="{}".format(n),
+                          ask_notes=False)
         
-    exp1 = Experiment(project='AutoEncodingFlows',
-                      tags=['MscThesis', 'AutoEncoder'],
-                      learner=CNFLearner,
-                      model=VectorFieldNoTime,
-                      dataset=Manifold1DDataset,
-                      trainer_args=trainer_args,
-                      learner_args=learner_args,
-                      model_args=model_args,
-                      dataset_args=dataset_args,
-                      dataloader_args=dataloader_args)
-
-    try:
-        exp1.run()
-    finally:
-        exp1.finish()
+        #Try catch to ensure wandb.finish() is called:
+        try:
+            exp.run()
+            exp.wandb_analyse([wandb_manifold1D_scatter_plot])
+        finally:
+            exp.finish()
+        
     
