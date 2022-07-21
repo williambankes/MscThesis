@@ -124,7 +124,10 @@ def wandb_manifold1D_scatter_plot(model, dataloader):
                
 if __name__ == '__main__':
     
+    import sys
+    
     #Wrap into config file or command line params
+    if '--test' in sys.argv: test=True
     n_iters = 10            
     trainer_args = {'gpus':1 if torch.cuda.is_available() else 0,
                     'min_epochs':1,
@@ -139,7 +142,6 @@ if __name__ == '__main__':
     
     #Wrap multiple runs into Experiment Runner? -> probably
     #Check if test run:
-    test = get_user_confirmation("Is Actual Run (y/n):")
     
     for n in range(n_iters):
         exp = Experiment(project='AutoEncodingFlows',
