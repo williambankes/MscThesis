@@ -142,7 +142,8 @@ class Manifold1DDatasetNoise(Manifold1DDataset):
         
     def __getitem__(self, idx):
         
-        data_point = self.data[idx]
+        #Clone the data to avoid python view errors
+        data_point = self.data[idx].clone()
  
         if isinstance(idx, slice):
             noise = torch.randn(data_point.shape[0])*self.noise
@@ -150,4 +151,51 @@ class Manifold1DDatasetNoise(Manifold1DDataset):
         elif isinstance(idx, int):
             noise = torch.randn(1)*self.noise            
             data_point[0] += noise[0]
+        else: raise NotImplementedError()
         return data_point
+    
+    
+if __name__ == '__main__':
+    
+    import matplotlib.pyplot as plt
+    
+    #Check that the noise addition doesn't affect the get_dataset method
+    dataset = Manifold1DDatasetNoise(n_samples=100, noise=0.07)
+    
+    #Disply dataset:
+    data = dataset.get_dataset()
+    fig, axs = plt.subplots(ncols=3)
+    
+    axs[0].scatter(data[:,0], data[:,1])
+    axs[0].set_ylim([-1.5, 1.5])
+    axs[0].set_xlim([-1.5, 1.5])
+    
+    #Plot data recieved via batches:
+    batch_data = dataset[:100]
+    axs[1].scatter(batch_data[:,0], batch_data[:,1])
+    axs[1].set_ylim([-1.5, 1.5])
+    axs[1].set_xlim([-1.5, 1.5])
+    
+    #Replot get dataset:
+    data2 = dataset.get_dataset()
+    
+    axs[2].scatter(data2[:,0], data2[:,1])
+    axs[2].set_ylim([-1.5, 1.5])
+    axs[2].set_xlim([-1.5, 1.5])
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
