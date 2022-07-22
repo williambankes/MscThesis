@@ -9,6 +9,7 @@ import wandb
 import pytorch_lightning as pl
 import torch.utils.data as data
 
+
 class Experiment:
     
     def __init__(self, project, tags, learner, model, dataset, 
@@ -43,7 +44,6 @@ class Experiment:
 
         """
         
-    
         #Setup configs:
         configs = {'Learner': learner.__name__,
                    'Model'  : model.__name__,
