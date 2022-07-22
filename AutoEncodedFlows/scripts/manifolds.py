@@ -13,7 +13,7 @@ from torchdyn.models import CNF, hutch_trace
 from torchdyn.nn import Augmenter
 import pytorch_lightning as pl
 from AutoEncodedFlows.utils.experiments import Experiment
-from AutoEncodedFlows.datasets import Manifold1DDataset
+from AutoEncodedFlows.datasets import Manifold1DDatasetNoise
 
 
 class CNFLearner(pl.LightningModule):
@@ -149,7 +149,7 @@ if __name__ == '__main__':
                           tags=['MscThesis', 'AutoEncoder'],
                           learner=CNFLearner,
                           model=VectorFieldNoTime,
-                          dataset=Manifold1DDataset,
+                          dataset=Manifold1DDatasetNoise,
                           trainer_args=trainer_args,
                           learner_args=learner_args,
                           model_args=model_args,
