@@ -127,12 +127,12 @@ if __name__ == '__main__':
     import sys
     
     #Wrap into config file or command line params
-    if '--test' in sys.argv: test=False
+    if '--test' in sys.argv: test=False #if --test then test=False
     else: test=True
     n_iters = 10            
     trainer_args = {'gpus':1 if torch.cuda.is_available() else 0,
-                    'min_epochs':0,
-                    'max_epochs':100,
+                    'min_epochs':100 if test else 1,
+                    'max_epochs':100 if test else 1,
                     'enable_checkpointing':False}
     learner_args = {'dims':2}
     model_args = {'dims':2,
