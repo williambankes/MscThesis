@@ -12,7 +12,7 @@ from torchdyn.core import NeuralODE
 from torchdyn.models import CNF, hutch_trace
 from torchdyn.nn import Augmenter
 import pytorch_lightning as pl
-from AutoEncodedFlows.utils.experiments import Experiment, get_user_confirmation
+from AutoEncodedFlows.utils.experiments import Experiment
 from AutoEncodedFlows.datasets import Manifold1DDataset
 
 
