@@ -118,13 +118,13 @@ class Manifold1DDataset(data.Dataset):
         """
         
         data = torch.arange(-1,1, 2/n_samples).reshape(-1, 1)
-        data += (2 * torch.rand(data.shape) - 1) * noise
-        
+   
         if func: y = func(data)
         else:    y = torch.zeros((n_samples, 1))
         
         self.data = torch.concat([y, data], axis=-1)
         self.n_samples = n_samples
+        self.noise = noise
         
     def __len__(self):
         return self.n_samples
@@ -134,7 +134,20 @@ class Manifold1DDataset(data.Dataset):
     
     def get_dataset(self):
         return self.data
-        
-        
-        
     
+class Manifold1DDatasetNoise(Manifold1DDataset):
+    
+    def __init__(self, n_samples, noise=0.0, func=False):
+        super().__init__(n_samples, noise, func)
+        
+    def __getitem__(self, idx):
+        
+        data_point = self.data[idx]
+ 
+        if isinstance(idx, slice):
+            noise = torch.randn(data_point.shape[0])*self.noise
+            data_point[:,0] += noise            
+        elif isinstance(idx, int):
+            noise = torch.randn(1)*self.noise            
+            data_point[0] += noise[0]
+        return data_point
