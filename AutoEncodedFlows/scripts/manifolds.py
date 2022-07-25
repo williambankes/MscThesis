@@ -162,7 +162,7 @@ if __name__ == '__main__':
     model_args = {'dims':2,
                   'hidden_dims':64}
     dataset_args = {'n_samples':10_000,
-                    'noise':0.0}
+                    'noise':0.15}
     dataloader_args = {'batch_size':508,
                        'shuffle':True}
     
@@ -170,7 +170,7 @@ if __name__ == '__main__':
     #Check if test run:
     
     for n in range(n_iters):
-        exp = Experiment(project='AutoEncodingFlows',
+        exp = Experiment(project='1DManifoldExperiments',
                           tags=['MscThesis', 'CNF', 'Noise=0.1'],
                           learner=CNFLearner,
                           model=VectorFieldTime,
