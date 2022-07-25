@@ -138,7 +138,7 @@ if __name__ == '__main__':
     model_args = {'dims':2,
                   'hidden_dims':64}
     dataset_args = {'n_samples':10_000,
-                    'noise':0.07}
+                    'noise':0.15}
     dataloader_args = {'batch_size':508,
                        'shuffle':True}
     
@@ -147,7 +147,7 @@ if __name__ == '__main__':
     
     for n in range(n_iters):
         exp = Experiment(project='AutoEncodingFlows',
-                          tags=['MscThesis', 'CNF'],
+                          tags=['MscThesis', 'CNF', 'Noise=0.1'],
                           learner=CNFLearner,
                           model=VectorFieldNoTime,
                           dataset=Manifold1DDatasetNoise,
