@@ -37,21 +37,26 @@ class CNFLearner(pl.LightningModule):
         self.__name__ = 'CNFLearner'
         self.iters = 0
         self.dims = dims
+        self.losses = list()
         
+        #Define model parameters:
         ode_solver_args = {'solver':'tsit5'}
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         
+        #Create Jacobian noise dist and base dist:
         self.mean = torch.zeros(self.dims).to(device)
         self.cov = torch.eye(self.dims).to(device)
         self.base_dist = MultivariateNormal(self.mean, self.cov)
         
+        #Create model:
         cnf = CNF(vector_field,
                   noise_dist=self.base_dist,
                   trace_estimator=hutch_trace)
         node = NeuralODE(cnf, **ode_solver_args)
         self.model = nn.Sequential(Augmenter(augment_idx=1, augment_dims=1),
                                    node)
-        self.losses = list()
+        wandb.watch(self.model)
+        
         
     def forward(self, x):
         
@@ -114,7 +119,7 @@ class VectorFieldTime(nn.Module):
                            DepthCat(1),
                            nn.Linear(hidden_dims + 1, hidden_dims),
                            nn.Tanh(),
-                           nn.Linear(hidden_dims + 1, dims))
+                           nn.Linear(hidden_dims, dims))
         
     def forward(self, x):
         return self.network(x)
