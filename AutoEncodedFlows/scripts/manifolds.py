@@ -10,7 +10,7 @@ import torch.nn as nn
 from torch.distributions import MultivariateNormal
 from torchdyn.core import NeuralODE
 from torchdyn.models import CNF, hutch_trace
-from torchdyn.nn import Augmenter
+from torchdyn.nn import Augmenter, DepthCat
 import pytorch_lightning as pl
 from AutoEncodedFlows.utils.experiments import Experiment
 from AutoEncodedFlows.datasets import Manifold1DDatasetNoise
@@ -98,8 +98,27 @@ class VectorFieldNoTime(nn.Module):
         return self.network(x)
     
 class VectorFieldTime(nn.Module):
-    pass
-
+    
+    def __init__(self, dims, hidden_dims):
+        
+        super().__init__()
+        
+        self.__name__ ='cnf_vector_field_w_time'
+        self.network = nn.Sequential(
+                           DepthCat(1),
+                           nn.Linear(dims + 1, hidden_dims),
+                           nn.Tanh(),
+                           DepthCat(1),
+                           nn.Linear(hidden_dims + 1, hidden_dims),
+                           nn.Tanh(),
+                           DepthCat(1),
+                           nn.Linear(hidden_dims + 1, hidden_dims),
+                           nn.Tanh(),
+                           nn.Linear(hidden_dims + 1, dims))
+        
+    def forward(self, x):
+        return self.network(x)
+        
 
 def wandb_manifold1D_scatter_plot(model, dataloader):
     
@@ -138,7 +157,7 @@ if __name__ == '__main__':
     model_args = {'dims':2,
                   'hidden_dims':64}
     dataset_args = {'n_samples':10_000,
-                    'noise':0.15}
+                    'noise':0.0}
     dataloader_args = {'batch_size':508,
                        'shuffle':True}
     
@@ -149,7 +168,7 @@ if __name__ == '__main__':
         exp = Experiment(project='AutoEncodingFlows',
                           tags=['MscThesis', 'CNF', 'Noise=0.1'],
                           learner=CNFLearner,
-                          model=VectorFieldNoTime,
+                          model=VectorFieldTime,
                           dataset=Manifold1DDatasetNoise,
                           trainer_args=trainer_args,
                           learner_args=learner_args,
