@@ -72,3 +72,23 @@ def label_to_colour(labels):
     #standardise values:
     alpha = (labels - labels.min())*torch.pi/(2 * labels.max())
     return torch.mul(alpha.sin(), red) + torch.mul(1 - alpha.sin(), blue)
+
+def wandb_manifold1D_scatter_plot(model, dataloader):
+    
+    torch.cuda.empty_cache()
+    
+    #Get Data:
+    dataset = dataloader.dataset
+    data = dataset.get_dataset()    
+    
+    #Move Data and model onto GPU (due to distributions not having device)
+    data = data.cuda() if torch.cuda.is_available() else data.cpu()    
+    model = model.cuda() if torch.cuda.is_available() else model
+    
+    #Process trained model:
+    _, output = model(data)
+    output = output[-1,:,1:].cpu().detach().numpy()
+    
+    #Create wandb log from data:
+    table = wandb.Table(data=output, columns=['x', 'y'])
+    return {"test graph" : wandb.plot.scatter(table, 'x', 'y', title="CNF Transform")}
