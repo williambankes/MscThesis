@@ -7,6 +7,7 @@ Created on Fri Jul 15 15:12:10 2022
 import wandb
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.distributions import MultivariateNormal
 from torchdyn.core import NeuralODE
 from torchdyn.models import CNF, hutch_trace
@@ -14,6 +15,7 @@ from torchdyn.nn import Augmenter, DepthCat
 import pytorch_lightning as pl
 from AutoEncodedFlows.utils.experiments import Experiment
 from AutoEncodedFlows.datasets import Manifold1DDatasetNoise
+from AutoEncodedFlows.utils.analysis
 
 
 class CNFLearner(pl.LightningModule):
@@ -124,28 +126,27 @@ class VectorFieldTime(nn.Module):
     def forward(self, x):
         return self.network(x)
         
-
-def wandb_manifold1D_scatter_plot(model, dataloader):
     
-    torch.cuda.empty_cache()
+class VectorFieldMasked(nn.Module):
+        
+    def __init__(self, dims, hidden_dims, batch_num):
+        """
+        Taken from the paper: https://proceedings.mlr.press/v139/bilos21a.html
+        as a means of explicitly controlling the trace of the jacobian
+        """
+        
+        super().__init__()
+        
+        self.__name__ = 'cnf_vector_field'
+        
+        #Create Batch network:
+        
+        
     
-    #Get Data:
-    dataset = dataloader.dataset
-    data = dataset.get_dataset()    
-    
-    #Move Data and model onto GPU (due to distributions not having device)
-    data = data.cuda() if torch.cuda.is_available() else data.cpu()    
-    model = model.cuda() if torch.cuda.is_available() else model
-    
-    #Process trained model:
-    _, output = model(data)
-    output = output[-1,:,1:].cpu().detach().numpy()
-    
-    #Create wandb log from data:
-    table = wandb.Table(data=output, columns=['x', 'y'])
-    return {"test graph" : wandb.plot.scatter(table, 'x', 'y', title="CNF Transform")}
-
-               
+    def forward(self, x):
+        return self.network(x)
+        
+                   
 if __name__ == '__main__':
     
     import sys
