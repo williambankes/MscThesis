@@ -15,7 +15,8 @@ from torchdyn.nn import Augmenter, DepthCat
 import pytorch_lightning as pl
 from AutoEncodedFlows.utils.experiments import Experiment
 from AutoEncodedFlows.datasets import Manifold1DDatasetNoise
-from AutoEncodedFlows.utils.analysis
+from AutoEncodedFlows.manifold_models import VectorFieldMasked
+from AutoEncodedFlows.utils.wandb_analysis import wandb_manifold1D_scatter_plot
 
 
 class CNFLearner(pl.LightningModule):
@@ -125,27 +126,7 @@ class VectorFieldTime(nn.Module):
         
     def forward(self, x):
         return self.network(x)
-        
-    
-class VectorFieldMasked(nn.Module):
-        
-    def __init__(self, dims, hidden_dims, batch_num):
-        """
-        Taken from the paper: https://proceedings.mlr.press/v139/bilos21a.html
-        as a means of explicitly controlling the trace of the jacobian
-        """
-        
-        super().__init__()
-        
-        self.__name__ = 'cnf_vector_field'
-        
-        #Create Batch network:
-        
-        
-    
-    def forward(self, x):
-        return self.network(x)
-        
+                
                    
 if __name__ == '__main__':
     
@@ -154,6 +135,9 @@ if __name__ == '__main__':
     #Wrap into config file or command line params
     if '--test' in sys.argv: test=False #if --test then test=False
     else: test=True
+    
+    test=False
+    
     n_iters = 10            
     trainer_args = {'gpus':1 if torch.cuda.is_available() else 0,
                     'min_epochs':100 if test else 1,
@@ -174,7 +158,7 @@ if __name__ == '__main__':
         exp = Experiment(project='1DManifoldExperiments',
                           tags=['MscThesis', 'CNF', 'Noise=0.1'],
                           learner=CNFLearner,
-                          model=VectorFieldTime,
+                          model=VectorFieldMasked,
                           dataset=Manifold1DDatasetNoise,
                           trainer_args=trainer_args,
                           learner_args=learner_args,
