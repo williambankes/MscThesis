@@ -256,7 +256,7 @@ class MADE(nn.Module):
         for h0,h1 in zip(hs, hs[1:]):
             self.net.extend([
                     MaskedLinear(h0, h1),
-                    nn.ReLU(),
+                    nn.Tanh(),
                 ])
         self.net.pop() # pop the last ReLU for the output layer
         self.net = nn.Sequential(*self.net)
