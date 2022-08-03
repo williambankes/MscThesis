@@ -56,7 +56,7 @@ class CNFLearner(pl.LightningModule):
         node = NeuralODE(cnf, **ode_solver_args)
         self.model = nn.Sequential(Augmenter(augment_idx=1, augment_dims=1),
                                    node)
-        wandb.watch(self.model)
+        #wandb.watch(self.model)
         
         
     def forward(self, x):
@@ -83,6 +83,7 @@ class CNFLearner(pl.LightningModule):
             
     def configure_optimizers(self):
         return torch.optim.Adam(self.model.parameters(), lr=2e-3, weight_decay=1e-5)
+    
 
 class VectorFieldNoTime(nn.Module):
     
@@ -176,11 +177,13 @@ class VectorFieldMasked(nn.Module):
         return pointwise_element + inner_element + trace_element
 
  
-def MaskedTrace(model):
-    return model.params.sum(0)
+def MaskedTrace(model, batch_size, device):
+    
+    output = torch.ones(batch_size).to(device)
+    return output*model.params.sum()
 
 class MaskedCNF(nn.Module):
-    def __init__(self, net:nn.Module, trace_estimator:Union[Callable, None]=None, noise_dist=None, order=1):
+    def __init__(self, net:nn.Module, device=None):
         """Continuous Normalizing Flow
         :param net: function parametrizing the datasets vector field.
         :type net: nn.Module
@@ -192,21 +195,38 @@ class MaskedCNF(nn.Module):
         :type order: int
         """
         super().__init__()
-        self.net, self.order = net, order # order at the CNF level will be merged with DEFunc
+        if device is None: self.device = 'cpu'
+        else:              self.device = device       
+        
+        self.net = net.to(self.device)
         self.trace_estimator = MaskedTrace
+        self.noise_dist, self.noise = None, None
+
+
 
     def forward(self, x):
-        with torch.set_grad_enabled(True):
-            # first dimension is reserved to divergence propagation
-            x_in = x[:,1:].requires_grad_(True)
 
-            # the neural network will handle the datasets-dynamics here
-            if self.order > 1: x_out = self.higher_order(x_in)
-            else: x_out = self.net(x_in)
-
-            trJ = self.trace_estimator(self.net)
+        # first dimension is reserved to divergence propagation
+        x_in = x[:,1:]
+        x_out = self.net(x_in)
+        trJ = self.trace_estimator(self.net, x_in.shape[0], self.device)
+                
         return torch.cat([-trJ[:, None], x_out], 1) + 0*x 
 
+class MaskedCNFLearner(CNFLearner):
+    
+    def __init__(self, vector_field:nn.Module, dims:int):
+        
+        super().__init__(vector_field, dims)
+        
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        
+        #Redefine the cnf model:
+        ode_solver_args = {'solver':'tsit5'}
+        cnf = MaskedCNF(vector_field, device=device)
+        node = NeuralODE(cnf, **ode_solver_args)
+        self.model = nn.Sequential(Augmenter(augment_idx=1, augment_dims=1),
+                                   node)
 
 if __name__ == '__main__':
 

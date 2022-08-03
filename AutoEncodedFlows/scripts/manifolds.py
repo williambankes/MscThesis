@@ -9,7 +9,7 @@ import torch
 from AutoEncodedFlows.utils.experiments import Experiment
 from AutoEncodedFlows.datasets import Manifold1DDatasetNoise
 from AutoEncodedFlows.manifold_models import VectorFieldMasked, VectorFieldTime
-from AutoEncodedFlows.manifold_models import CNFLearner
+from AutoEncodedFlows.manifold_models import CNFLearner, MaskedCNFLearner
 from AutoEncodedFlows.utils.wandb_analysis import wandb_manifold1D_scatter_plot
                 
                    
@@ -20,10 +20,8 @@ if __name__ == '__main__':
     #Wrap into config file or command line params
     if '--test' in sys.argv: test=False #if --test then test=False
     else: test=True
-    
-    test=False
-    
-    n_iters = 10            
+        
+    n_iters = 10           
     trainer_args = {'gpus':1 if torch.cuda.is_available() else 0,
                     'min_epochs':100 if test else 1,
                     'max_epochs':100 if test else 1,
@@ -42,7 +40,7 @@ if __name__ == '__main__':
     for n in range(n_iters):
         exp = Experiment(project='1DManifoldExperiments',
                           tags=['MscThesis', 'CNF', 'Noise=0.1'],
-                          learner=CNFLearner,
+                          learner=MaskedCNFLearner,
                           model=VectorFieldMasked,
                           dataset=Manifold1DDatasetNoise,
                           trainer_args=trainer_args,
