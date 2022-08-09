@@ -21,25 +21,28 @@ if __name__ == '__main__':
     if '--test' in sys.argv: test=False #if --test then test=False
     else: test=True
         
-    n_iters = 10           
+    n_iters = 10
     trainer_args = {'gpus':1 if torch.cuda.is_available() else 0,
-                    'min_epochs':100 if test else 1,
+                    'min_epochs':20 if test else 1,
                     'max_epochs':100 if test else 1,
-                    'enable_checkpointing':False}
+                    'enable_checkpointing':False,
+                    'val_check_interval':0.5}
     learner_args = {'dims':2}
     model_args = {'dims':2,
                   'hidden_dims':64}
-    dataset_args = {'n_samples':10_000,
-                    'noise':0.15}
+    dataset_args = {'n_samples':10000,
+                    'noise':0}
     dataloader_args = {'batch_size':256,
                        'shuffle':True}
-    
+    early_stopping_args = {'monitor':'val_loss',
+			   'patience':200,
+			   'mode':'min'}    
     #Wrap multiple runs into Experiment Runner? -> probably
     #Check if test run:
     
     for n in range(n_iters):
         exp = Experiment(project='1DManifoldExperiments',
-                          tags=['MscThesis', 'CNF', 'Noise=0.1'],
+                          tags=['MscThesis', 'CNF', 'Noise=0'],
                           learner=MaskedCNFLearner,
                           model=VectorFieldMasked,
                           dataset=Manifold1DDatasetNoise,
@@ -50,7 +53,8 @@ if __name__ == '__main__':
                           dataloader_args=dataloader_args,
                           group_name=None if test else "Test_Run",
                           experiment_name="{}".format(n),
-                          ask_notes=False)
+                          ask_notes=False,
+			  early_stopping_args=early_stopping_args)
         
         #Try catch to ensure wandb.finish() is called:
         try:

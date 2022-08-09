@@ -7,6 +7,7 @@ Created on Thu Jun 30 14:23:09 2022
 
 import wandb
 import pytorch_lightning as pl
+from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 import torch.utils.data as data
 
 
@@ -15,7 +16,7 @@ class Experiment:
     def __init__(self, project, tags, learner, model, dataset, 
                  trainer_args, learner_args, model_args, dataset_args,
                  dataloader_args, group_name=None, experiment_name=None,
-                 ask_notes=True):
+                 ask_notes=True, early_stopping_args=None):
         """
         A class to manage wandb api interactions and pytorch lightning training
         interactions. Input relevant models and parameters then run the .run()
@@ -37,6 +38,9 @@ class Experiment:
         <param>_args : dict
             Dictionary of arguments to be passed to the relevant parameter. These
             are also logged in the wandb config so should be a python primative.
+	early_stopping : int
+	    If not entered early stopping will not be applied to the model, if int
+	    the patience of the callback will be set as early_stopping.
 
         Returns
         -------
@@ -69,6 +73,9 @@ class Experiment:
         print('Creating Experiment:{} in group: {}'.format(self.experiment_name,
                                                            self.group_name))
 
+        if early_stopping_args is None: early_stopping_callback = None
+        else: early_stopping_callback = EarlyStopping(**early_stopping_args)
+
         #Setup model and trainer:
         self.runner = wandb.init(
                         project=project,
@@ -80,10 +87,11 @@ class Experiment:
                 
         self.model = model(**model_args)
         self.learner = learner(self.model, **learner_args)
-        self.trainer = pl.Trainer(**trainer_args)
+        self.trainer = pl.Trainer(**trainer_args, callbacks=early_stopping_callback)
         self.dataloader = data.DataLoader(dataset(**dataset_args),
                                           **dataloader_args)
         self.fitted = False
+        self.early_stopping = early_stopping_args
                     
     def run(self):
         """
@@ -94,8 +102,11 @@ class Experiment:
         None.
 
         """
-        
-        self.trainer.fit(self.learner, train_dataloaders=self.dataloader)
+        if self.early_stopping is None: val_dataloader = None
+        else: val_dataloader = self.dataloader
+
+        self.trainer.fit(self.learner, train_dataloaders=self.dataloader,
+                                       val_dataloaders=val_dataloader)
         self.fitted = True
         
             

@@ -56,7 +56,7 @@ class CNFLearner(pl.LightningModule):
         node = NeuralODE(cnf, **ode_solver_args)
         self.model = nn.Sequential(Augmenter(augment_idx=1, augment_dims=1),
                                    node)
-        #wandb.watch(self.model)
+        wandb.watch(self.model)
         
         
     def forward(self, x):
@@ -80,6 +80,15 @@ class CNFLearner(pl.LightningModule):
                    'epoch': self.current_epoch})
            
         return {'loss': loss}   
+
+    def validation_step(self, batch, batch_idx):
+
+        t_eval, xtrJ = self.model(batch)
+        xtrJ = xtrJ[-1] 
+        logprob = self.base_dist.log_prob(xtrJ[:,1:]).to(batch) - xtrJ[:,0]
+        loss = -torch.mean(logprob)
+        
+        self.log("val_loss", loss)
             
     def configure_optimizers(self):
         return torch.optim.Adam(self.model.parameters(), lr=2e-3, weight_decay=1e-5)
