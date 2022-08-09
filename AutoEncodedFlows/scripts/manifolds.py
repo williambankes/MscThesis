@@ -21,12 +21,14 @@ if __name__ == '__main__':
     if '--test' in sys.argv: test=False #if --test then test=False
     else: test=True
         
-    n_iters = 10
+    test = False
+    
+    n_iters = 1
     trainer_args = {'gpus':1 if torch.cuda.is_available() else 0,
                     'min_epochs':20 if test else 1,
                     'max_epochs':100 if test else 1,
                     'enable_checkpointing':False,
-                    'val_check_interval':0.5}
+                    'check_val_every_n_epoch':5}
     learner_args = {'dims':2}
     model_args = {'dims':2,
                   'hidden_dims':64}
@@ -35,8 +37,8 @@ if __name__ == '__main__':
     dataloader_args = {'batch_size':256,
                        'shuffle':True}
     early_stopping_args = {'monitor':'val_loss',
-			   'patience':200,
-			   'mode':'min'}    
+			               'patience':2,
+			               'mode':'min'}    
     #Wrap multiple runs into Experiment Runner? -> probably
     #Check if test run:
     
@@ -51,10 +53,10 @@ if __name__ == '__main__':
                           model_args=model_args,
                           dataset_args=dataset_args,
                           dataloader_args=dataloader_args,
+                          early_stopping_args=early_stopping_args,
                           group_name=None if test else "Test_Run",
                           experiment_name="{}".format(n),
-                          ask_notes=False,
-			  early_stopping_args=early_stopping_args)
+                          ask_notes=False)
         
         #Try catch to ensure wandb.finish() is called:
         try:

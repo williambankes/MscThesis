@@ -15,8 +15,8 @@ class Experiment:
     
     def __init__(self, project, tags, learner, model, dataset, 
                  trainer_args, learner_args, model_args, dataset_args,
-                 dataloader_args, group_name=None, experiment_name=None,
-                 ask_notes=True, early_stopping_args=None):
+                 dataloader_args, early_stopping_args=None, group_name=None, experiment_name=None,
+                 ask_notes=True):
         """
         A class to manage wandb api interactions and pytorch lightning training
         interactions. Input relevant models and parameters then run the .run()
