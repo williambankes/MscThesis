@@ -22,6 +22,8 @@ class CNFLearner(pl.LightningModule):
     def __init__(self, vector_field:nn.Module, dims:int):
         """
         Learner setup for Torchdyn CNF model
+        
+        Wrap step function logic in calc loss function?
 
         Parameters
         ----------
@@ -66,6 +68,7 @@ class CNFLearner(pl.LightningModule):
         return self.model(x)
     
     def training_step(self, batch, batch_idx):
+        
         self.iters += 1 
         t_eval, xtrJ = self.model(batch)
         xtrJ = xtrJ[-1] #select the end point of the trajectory:
@@ -90,6 +93,16 @@ class CNFLearner(pl.LightningModule):
         
         wandb.log({'val loss':loss.detach().item()})
         self.log("val_loss", loss)
+        
+    def test_step(self, batch, batch_idx):
+        
+        t_eval, xtrJ = self.model(batch)
+        xtrJ = xtrJ[-1]
+        logprob = self.base_dist.log_prob(xtrJ[:,1:]).to(batch) - xtrJ[:,0]
+        loss = -torch.mean(logprob)
+        
+        wandb.log({'test loss': loss.detach().item()})
+        self.log("test_loss", loss)
             
     def configure_optimizers(self):
         return torch.optim.Adam(self.model.parameters(), lr=2e-3, weight_decay=1e-5)
@@ -211,7 +224,6 @@ class MaskedCNF(nn.Module):
         self.net = net.to(self.device)
         self.trace_estimator = MaskedTrace
         self.noise_dist, self.noise = None, None
-
 
 
     def forward(self, x):

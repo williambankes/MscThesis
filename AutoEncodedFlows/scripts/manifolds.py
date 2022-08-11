@@ -20,7 +20,7 @@ if __name__ == '__main__':
     #Wrap into config file or command line params
     if '--test' in sys.argv: test=False #if --test then test=False
     else: test=True
-            
+                
     n_iters = 10
     trainer_args = {'gpus':1 if torch.cuda.is_available() else 0,
                     'min_epochs':20 if test else 1,
@@ -32,11 +32,12 @@ if __name__ == '__main__':
                   'hidden_dims':64}
     dataset_args = {'n_samples':10000,
                     'noise':0}
+    test_dataset_args = dataset_args
     dataloader_args = {'batch_size':256,
                        'shuffle':True}
     early_stopping_args = {'monitor':'val_loss',
 			               'patience':2,
-	                               'mode':'min'}    
+                           'mode':'min'}    
     #Wrap multiple runs into Experiment Runner? -> probably
     #Check if test run:
     
@@ -46,6 +47,8 @@ if __name__ == '__main__':
                           learner=MaskedCNFLearner,
                           model=VectorFieldMasked,
                           dataset=Manifold1DDatasetNoise,
+                          test_dataset=Manifold1DDatasetNoise,
+                          test_dataset_args=test_dataset_args,
                           trainer_args=trainer_args,
                           learner_args=learner_args,
                           model_args=model_args,

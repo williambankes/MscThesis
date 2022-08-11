@@ -15,8 +15,9 @@ class Experiment:
     
     def __init__(self, project, tags, learner, model, dataset, 
                  trainer_args, learner_args, model_args, dataset_args,
-                 dataloader_args, early_stopping_args=None, group_name=None, experiment_name=None,
-                 ask_notes=True):
+                 dataloader_args, test_dataset = None, test_dataset_args=None , 
+                 early_stopping_args=None, group_name=None,
+                 experiment_name=None, ask_notes=True):
         """
         A class to manage wandb api interactions and pytorch lightning training
         interactions. Input relevant models and parameters then run the .run()
@@ -48,7 +49,9 @@ class Experiment:
 
         """
         
-        #Setup configs:
+        #### Wrap init code into param processing functions
+        
+        #Setup config file for wandb:
         configs = {'Learner': learner.__name__,
                    'Model'  : model.__name__,
                    'Dataset': dataset.__name__}
@@ -58,7 +61,7 @@ class Experiment:
         configs.update(dataset_args)
         configs.update(dataloader_args)
         
-        #May restructure depending on project scope:
+        #Setup wandb group name, experiment_name and note
         if group_name is None: self.group_name = "{}_{}_{}".format(configs['Learner'],
                                                                    configs['Model'],
                                                                    configs['Dataset'])
@@ -73,10 +76,7 @@ class Experiment:
         print('Creating Experiment:{} in group: {}'.format(self.experiment_name,
                                                            self.group_name))
 
-        if early_stopping_args is None: early_stopping_callback = None
-        else: early_stopping_callback = EarlyStopping(**early_stopping_args)
-
-        #Setup model and trainer:
+        #Setup wandb experiment:
         self.runner = wandb.init(
                         project=project,
                         group=self.group_name,
@@ -84,14 +84,31 @@ class Experiment:
                         notes=notes,
                         tags=tags,
                         config=configs)
-                
+
+        #Setup early stopping args:
+        if early_stopping_args is None: early_stopping_callback = None
+        else: early_stopping_callback = EarlyStopping(**early_stopping_args)
+        self.early_stopping = early_stopping_args #replace with val dataloader setup     
+        
+        #Setup Test dataset 
+        if test_dataset is None:
+            if test_dataset_args is None: 
+                print('warning: test_dataset_args set when test_dataset is None')
+            self.test_dataloader = None
+        else:
+            assert test_dataset_args is not None,\
+            'test_dataset_args must be speicified when test_dataset is not None' 
+            self.test_dataloader = data.DataLoader(test_dataset(**test_dataset_args),
+                                                   **dataloader_args)
+        self.dataloader = data.DataLoader(dataset(**dataset_args),
+                                                  **dataloader_args)
+        
+        
         self.model = model(**model_args)
         self.learner = learner(self.model, **learner_args)
         self.trainer = pl.Trainer(**trainer_args, callbacks=early_stopping_callback)
-        self.dataloader = data.DataLoader(dataset(**dataset_args),
-                                          **dataloader_args)
         self.fitted = False
-        self.early_stopping = early_stopping_args
+
                     
     def run(self):
         """
@@ -102,11 +119,15 @@ class Experiment:
         None.
 
         """
+        #Sort into init
         if self.early_stopping is None: val_dataloader = None
         else: val_dataloader = self.dataloader
 
         self.trainer.fit(self.learner, train_dataloaders=self.dataloader,
                                        val_dataloaders=val_dataloader)
+        if self.test_dataloader is not None:
+            self.trainer.test(self.learner, dataloaders=self.test_dataloader)
+        
         self.fitted = True
         
             
@@ -149,7 +170,7 @@ class Experiment:
 
         """
         for i, func in enumerate(analyse_funcs):
-            output = func(self.trainer.model, self.dataloader)
+            func(self.trainer.model, self.dataloader)
             
     def finish(self):
         """
