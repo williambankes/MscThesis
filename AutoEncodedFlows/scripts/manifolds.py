@@ -20,10 +20,8 @@ if __name__ == '__main__':
     #Wrap into config file or command line params
     if '--test' in sys.argv: test=False #if --test then test=False
     else: test=True
-        
-    test = False
-    
-    n_iters = 1
+            
+    n_iters = 10
     trainer_args = {'gpus':1 if torch.cuda.is_available() else 0,
                     'min_epochs':20 if test else 1,
                     'max_epochs':100 if test else 1,
@@ -38,7 +36,7 @@ if __name__ == '__main__':
                        'shuffle':True}
     early_stopping_args = {'monitor':'val_loss',
 			               'patience':2,
-			               'mode':'min'}    
+	                               'mode':'min'}    
     #Wrap multiple runs into Experiment Runner? -> probably
     #Check if test run:
     

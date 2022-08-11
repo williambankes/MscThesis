@@ -78,7 +78,7 @@ class CNFLearner(pl.LightningModule):
         #wandb logging:
         wandb.log({'training loss': loss.detach().item(),
                    'epoch': self.current_epoch})
-           
+	           
         return {'loss': loss}   
 
     def validation_step(self, batch, batch_idx):
@@ -88,6 +88,7 @@ class CNFLearner(pl.LightningModule):
         logprob = self.base_dist.log_prob(xtrJ[:,1:]).to(batch) - xtrJ[:,0]
         loss = -torch.mean(logprob)
         
+        wandb.log({'val loss':loss.detach().item()})
         self.log("val_loss", loss)
             
     def configure_optimizers(self):
