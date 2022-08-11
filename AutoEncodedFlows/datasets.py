@@ -160,29 +160,40 @@ if __name__ == '__main__':
     import matplotlib.pyplot as plt
     
     #Check that the noise addition doesn't affect the get_dataset method
-    dataset = Manifold1DDatasetNoise(n_samples=100, noise=0.07)
+    dataset = Manifold1DDatasetNoise(n_samples=100, noise=0.1)
     
     #Disply dataset:
     data = dataset.get_dataset()
-    fig, axs = plt.subplots(ncols=3)
+    fig, axs = plt.subplots(figsize=(15,5), ncols=4)
     
     axs[0].scatter(data[:,0], data[:,1])
     axs[0].set_ylim([-1.5, 1.5])
     axs[0].set_xlim([-1.5, 1.5])
     
-    #Plot data recieved via batches:
-    batch_data = dataset[:100]
-    axs[1].scatter(batch_data[:,0], batch_data[:,1])
+    dataset2 = Manifold1DDatasetNoise(n_samples=100, noise=0.07)
+    data3 = dataset2[:100]
+    
+    axs[1].scatter(data3[:,0], data3[:,1])
     axs[1].set_ylim([-1.5, 1.5])
     axs[1].set_xlim([-1.5, 1.5])
     
-    #Replot get dataset:
-    data2 = dataset.get_dataset()
     
-    axs[2].scatter(data2[:,0], data2[:,1])
+    #Plot data recieved via batches:
+    batch_data = dataset[:100]
+    axs[2].scatter(batch_data[:,0], batch_data[:,1])
     axs[2].set_ylim([-1.5, 1.5])
     axs[2].set_xlim([-1.5, 1.5])
     
+    
+    #Replot get dataset:
+    dataset = Manifold1DDatasetNoise(n_samples=100, noise=0.15)
+    data2 = dataset[:100]
+    
+    axs[3].scatter(data2[:,0], data2[:,1])
+    axs[3].set_ylim([-1.5, 1.5])
+    axs[3].set_xlim([-1.5, 1.5])
+    
+    fig.savefig('./images/Toy.png')
     
     
     
