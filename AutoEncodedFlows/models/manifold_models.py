@@ -14,7 +14,7 @@ from torchdyn.core import NeuralODE
 from torchdyn.models import CNF, hutch_trace
 from torchdyn.nn import Augmenter, DepthCat
 import pytorch_lightning as pl
-from AutoEncodedFlows.modules import MADE
+from AutoEncodedFlows.models.modules import MADE
 from typing import Union, Callable
 
 class CNFLearner(pl.LightningModule):

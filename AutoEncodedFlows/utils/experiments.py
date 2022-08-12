@@ -15,7 +15,8 @@ class Experiment:
     
     def __init__(self, project, tags, learner, model, dataset, 
                  trainer_args, learner_args, model_args, dataset_args,
-                 dataloader_args, test_dataset = None, test_dataset_args=None , 
+                 dataloader_args, val_dataset=None, val_dataset_args=None,
+                 test_dataset = None, test_dataset_args=None , 
                  early_stopping_args=None, group_name=None,
                  experiment_name=None, ask_notes=True):
         """
@@ -88,43 +89,73 @@ class Experiment:
         #Setup early stopping args:
         if early_stopping_args is None: early_stopping_callback = None
         else: early_stopping_callback = EarlyStopping(**early_stopping_args)
-        self.early_stopping = early_stopping_args #replace with val dataloader setup     
-        
-        #Setup Test dataset 
-        if test_dataset is None:
-            if test_dataset_args is None: 
-                print('warning: test_dataset_args set when test_dataset is None')
-            self.test_dataloader = None
-        else:
-            assert test_dataset_args is not None,\
-            'test_dataset_args must be speicified when test_dataset is not None' 
-            self.test_dataloader = data.DataLoader(test_dataset(**test_dataset_args),
-                                                   **dataloader_args)
-        self.dataloader = data.DataLoader(dataset(**dataset_args),
-                                                  **dataloader_args)
-        
+       
+        #Setup Dataloaders:
+        self.train_dataloader = self.init_dataloader(dataloader_args, dataset,
+                                                     dataset_args, 'train')
+        self.val_dataloader = self.init_dataloader(dataloader_args, val_dataset,
+                                                     val_dataset_args, 'val')
+        self.test_dataloader = self.init_dataloader(dataloader_args, test_dataset,
+                                                    test_dataset_args, 'test')
         
         self.model = model(**model_args)
         self.learner = learner(self.model, **learner_args)
         self.trainer = pl.Trainer(**trainer_args, callbacks=early_stopping_callback)
         self.fitted = False
-
+        
                     
+    def init_dataloader(self, dataloader_args, dataset, dataset_args, name):
+        """
+        Setup dataloader with args and correctly setup dataset. Handles cases
+        where no DataLoader is required e.g. test and validation cases
+
+        Parameters
+        ----------
+        dataloader_args : <dict>
+            Dictionary with arguments specific to the DataLoader
+        dataset : <pytorch.utils.data.DataSet>
+            Dataset to be wrapped in DataLoader 
+        dataset_args : <dict>
+            Arguments for instantiating the DataSet
+        name : str
+            Name of the dataset being instantiated e.g. train, val, test
+
+        Returns
+        -------
+        dataloader : <pytorch.utils.data.DataLoader>
+            DataLoader for input Dataset 
+
+        """
+        
+        if dataset is None:
+            if dataset_args is None: 
+                print('warning: {}_dataset_args set when {}_dataset is None'.\
+                      format(name, name))
+            dataloader = None
+        else:
+            assert dataset_args is not None,\
+            '{}_dataset_args must be speicified when {}_dataset is not None'.\
+                format(name, name)
+            dataloader = data.DataLoader(dataset(**dataset_args), **dataloader_args)
+        
+        return dataloader
+    
     def run(self):
         """
-        Run the trainer .fit() method
+        Run the training, validation and test loops defined in pytorch lightning
 
         Returns
         -------
         None.
 
         """
-        #Sort into init
-        if self.early_stopping is None: val_dataloader = None
-        else: val_dataloader = self.dataloader
-
-        self.trainer.fit(self.learner, train_dataloaders=self.dataloader,
-                                       val_dataloaders=val_dataloader)
+        #Run Training loop
+        self.trainer.fit(self.learner, train_dataloaders=self.train_dataloader,
+                                       val_dataloaders=self.val_dataloader)
+        
+        #Potentially add self.trainer.validate() loop here...
+        
+        #Run Test if test dataset provided:
         if self.test_dataloader is not None:
             self.trainer.test(self.learner, dataloaders=self.test_dataloader)
         
@@ -151,7 +182,10 @@ class Experiment:
         """
         
         for i, func in enumerate(analyse_funcs):
-            output = func(self.trainer.model, self.dataloader)
+            if self.test_dataloader is None:
+                output = func(self.trainer.model, self.train_dataloader)
+            else:
+                output = func(self.trainer.model, self.test_dataloader)
             self.runner.log(output)
             
     def analyse(self, analyse_funcs):
@@ -204,11 +238,7 @@ def get_user_input(query):
 
 def get_user_confirmation(query):
     """
-
-    Parameters
-    ----------
-    query : TYPE
-        DESCRIPTION.
+    Get user confirmation via a 'y' or 'yes' type answer... Add more options
 
     Returns
     -------
