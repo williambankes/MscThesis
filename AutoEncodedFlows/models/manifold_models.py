@@ -8,14 +8,12 @@ Created on Wed Aug  3 11:51:03 2022
 import wandb
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from torch.distributions import MultivariateNormal
 from torchdyn.core import NeuralODE
 from torchdyn.models import CNF, hutch_trace
 from torchdyn.nn import Augmenter, DepthCat
 import pytorch_lightning as pl
 from AutoEncodedFlows.models.modules import MADE
-from typing import Union, Callable
 
 class CNFLearner(pl.LightningModule):
     

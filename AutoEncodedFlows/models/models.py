@@ -11,9 +11,6 @@ from torchdyn.nn   import DepthCat
 from AutoEncodedFlows.modules import NeuralODEWrapper, Projection1D
 from AutoEncodedFlows.modules import SequentialFlow
 
-
-        
-
 class GradientNetwork(nn.Module):
     
     def __init__(self, dims, time_grad=False, hidden_dim=32):
