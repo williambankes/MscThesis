@@ -5,20 +5,62 @@ Created on Thu Jun 30 14:23:09 2022
 @author: William
 """
 
+import gc
 import wandb
+import torch
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 import torch.utils.data as data
 
 
+class ExperimentRunner:
+    
+    @staticmethod
+    def run_experiments(exp_list, exp_analysis_list):
+        """
+        Run a set of experiments and their analysis functions in a batch
+        run.
+
+        Parameters
+        ----------
+        exp_list : <list>
+            A list of instantiated experiement objects
+        exp_analysis_list: <list>
+            A list of analysis methods whos api is appropriate for the wandb_analysis
+            and analysis methods below.
+        n_iter : int, optional
+            Number of iterations to run each experiment. The default is 10.
+
+        Returns
+        -------
+        None.
+
+        """
+        
+        assert len(exp_list) == len(exp_analysis_list),\
+            'Experiment must have wandb_analysis'
+        
+        for i, exp in enumerate(exp_list):
+                
+            #Try catch to ensure wandb.finish() is called:
+            try:
+                #Experiment name as number
+                exp.setup_run(experiment_name='{}'.format(i))
+                exp.run()
+                with torch.no_grad():
+                    exp.wandb_analyse(exp_analysis_list[i])
+            finally:
+                exp.finish()
+                         
+
+
 class Experiment:
     
-    def __init__(self, project, tags, learner, model, dataset, 
-                 trainer_args, learner_args, model_args, dataset_args,
+    def __init__(self, project, learner, model, train_dataset, 
+                 trainer_args, learner_args, model_args, train_dataset_args,
                  dataloader_args, val_dataset=None, val_dataset_args=None,
-                 test_dataset = None, test_dataset_args=None , 
-                 early_stopping_args=None, group_name=None,
-                 experiment_name=None, ask_notes=True):
+                 test_dataset = None, test_dataset_args=None, 
+                 early_stopping_args=None, group_name=None, ask_notes=True):
         """
         A class to manage wandb api interactions and pytorch lightning training
         interactions. Input relevant models and parameters then run the .run()
@@ -55,11 +97,11 @@ class Experiment:
         #Setup config file for wandb:
         configs = {'Learner': learner.__name__,
                    'Model'  : model.__name__,
-                   'Dataset': dataset.__name__}
+                   'Dataset': train_dataset.__name__}
         configs.update(model_args)
         configs.update(learner_args)
         configs.update(trainer_args)
-        configs.update(dataset_args)
+        configs.update(train_dataset_args)
         configs.update(dataloader_args)
         
         #Setup wandb group name, experiment_name and note
@@ -68,42 +110,74 @@ class Experiment:
                                                                    configs['Dataset'])
         else:                  self.group_name = group_name
         
+        
+
+        self.configs = configs
+        self.project = project
+        self.ask_notes = ask_notes
+        
+        self.early_stopping_args = early_stopping_args
+        self.dataloader_args = dataloader_args   
+        self.train_dataset, self.train_dataset_args = train_dataset, train_dataset_args
+        self.val_dataset, self.val_dataset_args = val_dataset, val_dataset_args
+        self.test_dataset, self.test_dataset_args = test_dataset, test_dataset_args
+        
+        self.model_class = model
+        self.model_args = model_args
+        self.learner_class, self.learner_args = learner, learner_args
+        self.trainer_args = trainer_args
+        self.setup = False
+        
+    def setup_run(self, experiment_name):
+        """
+        setup_run allows us to control when memory intensive objects such as the
+        model and dataset are instantiated. This must be run before the <run>
+        method
+
+        Returns
+        -------
+        None.
+
+        """
+        
         if experiment_name is None: self.experiment_name = get_user_input("Enter Experiment Name:")
         else:                       self.experiment_name = experiment_name 
         
-        if ask_notes: notes = get_user_input("Enter notes on experiment {}:".\
-                                             format(self.experiment_name))
-        else:         notes = "N/A"
-        print('Creating Experiment:{} in group: {}'.format(self.experiment_name,
+        print('Creating Experiment:{} in group: {}'.format(experiment_name,
                                                            self.group_name))
-
+        
+        if self.ask_notes: self.notes = get_user_input("Enter notes on experiment {}:".\
+                                                  format(self.experiment_name))
+        else:              self.notes = "N/A"
+        
         #Setup wandb experiment:
         self.runner = wandb.init(
-                        project=project,
+                        project=self.project,
                         group=self.group_name,
                         name=self.experiment_name,
-                        notes=notes,
-                        tags=tags,
-                        config=configs)
+                        notes=self.notes,
+                        config=self.configs)
 
         #Setup early stopping args:
-        if early_stopping_args is None: early_stopping_callback = None
-        else: early_stopping_callback = EarlyStopping(**early_stopping_args)
+        if self.early_stopping_args is None: early_stopping_callback = None
+        else: early_stopping_callback = EarlyStopping(**self.early_stopping_args)
        
         #Setup Dataloaders:
-        self.train_dataloader = self.init_dataloader(dataloader_args, dataset,
-                                                     dataset_args, 'train')
-        self.val_dataloader = self.init_dataloader(dataloader_args, val_dataset,
-                                                     val_dataset_args, 'val')
-        self.test_dataloader = self.init_dataloader(dataloader_args, test_dataset,
-                                                    test_dataset_args, 'test')
+        self.train_dataloader = self.init_dataloader(self.dataloader_args, self.train_dataset,
+                                                     self.train_dataset_args, 'train')
+        self.val_dataloader = self.init_dataloader(self.dataloader_args, self.val_dataset,
+                                                     self.val_dataset_args, 'val')
+        self.test_dataloader = self.init_dataloader(self.dataloader_args, self.test_dataset,
+                                                    self.test_dataset_args, 'test')
         
-        self.model = model(**model_args)
-        self.learner = learner(self.model, **learner_args)
-        self.trainer = pl.Trainer(**trainer_args, callbacks=early_stopping_callback)
+        self.model = self.model_class(**self.model_args)
+        self.learner = self.learner_class(self.model, **self.learner_args)
+        self.trainer = pl.Trainer(**self.trainer_args, callbacks=early_stopping_callback)
+        
         self.fitted = False
+        self.setup = True
         
-                    
+        
     def init_dataloader(self, dataloader_args, dataset, dataset_args, name):
         """
         Setup dataloader with args and correctly setup dataset. Handles cases
@@ -149,6 +223,8 @@ class Experiment:
         None.
 
         """
+        assert self.setup, 'Must run setup_run method first'
+        
         #Run Training loop
         self.trainer.fit(self.learner, train_dataloaders=self.train_dataloader,
                                        val_dataloaders=self.val_dataloader)
@@ -218,6 +294,12 @@ class Experiment:
         """
         print('Experiment:{} finishing'.format(self.experiment_name))
         self.runner.finish()
+
+        if self.setup:
+            #Delete datasets and models:        
+            del self.train_dataloader, self.val_dataloader, self.test_dataloader
+            del self.learner, self.trainer, self.model
+        gc.collect()
         
         
 def get_user_input(query):

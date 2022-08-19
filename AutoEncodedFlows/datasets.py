@@ -153,10 +153,20 @@ class Manifold1DDatasetNoise(Manifold1DDataset):
             data_point[0] += noise[0]
         else: raise NotImplementedError()
         return data_point
-    
+      
+
     
 if __name__ == '__main__':
     
+    from torchvision.datasets import FashionMNIST
+    from torchvision import transforms
+    
+    data = FashionMNIST('../', download=True, train=True,
+                        transform=transforms.ToTensor())
+    sample, target = data[0]
+    
+    
+    """
     import matplotlib.pyplot as plt
     
     #Check that the noise addition doesn't affect the get_dataset method
@@ -194,6 +204,9 @@ if __name__ == '__main__':
     axs[3].set_xlim([-1.5, 1.5])
     
     fig.savefig('./images/Toy.png')
+    """
+    
+    
     
     
     
