@@ -21,6 +21,7 @@ if __name__ == '__main__':
     from AutoEncodedFlows.datasets import SCurveDataset
     from AutoEncodedFlows.utils.experiments import Experiment, ExperimentRunner
     from AutoEncodedFlows.utils.wandb_analysis import wandb_3d_point_cloud
+    from AutoEncodedFlows.models import AENODEModel
     
     #Setup AutoEncoder Baseline
     
@@ -36,6 +37,7 @@ if __name__ == '__main__':
                           'latent_dims':2,
                           'latent_hidden_dims':16}
     VAELinearModel_args = AELinearModel_args
+    AENODEModel_args = AELinearModel_args
     VAELearner_args = {'latent_dims':2,
                        'input_dims':3}
     dataloader_args = {'batch_size':256,
@@ -72,6 +74,25 @@ if __name__ == '__main__':
                          group_name=None,
                          ask_notes=False)]
     exps_analysis = [[wandb_3d_point_cloud]]
-      
-    exps.extend(vae_exp)
-    ExperimentRunner.run_experiments(exps*10, [[wandb_3d_point_cloud]]*20)
+    
+    node_exp = [Experiment(project='AutoEncodingFlowsSimple',
+                         learner=VAELearner,
+                         model=AENODEModel,
+                         train_dataset=SCurveDataset,
+                         train_dataset_args=scurve_train_dataset_args,
+                         test_dataset=SCurveDataset,
+                         test_dataset_args=scurve_test_dataset_args,
+                         trainer_args=trainer_args,
+                         dataloader_args=dataloader_args,
+                         learner_args=AENODEModel_args,
+                         model_args=AENODEModel_args,
+                         group_name=None,
+                         ask_notes=False)]
+    exps_analysis = [[wandb_3d_point_cloud]]
+    
+    
+    exps = exps*10
+    exps.extend(vae_exp*10)
+    exps.extend(node_exp*10)
+    
+    ExperimentRunner.run_experiments(exps, [[wandb_3d_point_cloud]]*30)

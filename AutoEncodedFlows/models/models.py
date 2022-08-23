@@ -82,20 +82,68 @@ class GradientNetwork(nn.Module):
                         nn.Linear(hidden_dim, dims))
 
         
-    def _create_layer(self, dims_in, dims_out, time_grad):
-        
-        if time_grad: layer = [DepthCat(1),
-                               nn.Linear(dims_in + 1, dims_out),
-                               nn.BatchNorm1d(dims_out),
-                               nn.LeakyReLU(0.01)]
-        else:         layer = [nn.Linear(dims_in, dims_out),
-                               nn.BatchNorm1d(dims_out),
-                               nn.LeakyReLU(0.01)]   
-        
-        return layer
         
     def forward(self, x):
         return self.network(x)        
+    
+class AENODEModel(nn.Module):
+    
+    def __init__(self, input_dims:int, hidden_dims:int, 
+                 latent_dims:int, latent_hidden_dims:int, 
+                 ode_solver_args=None):
+    
+        super().__init__()
+        
+        if ode_solver_args is None: ode_solver_args = {'solver':'dopri5'}
+        
+        encoder_net_data = nn.Sequential(nn.Linear(input_dims, hidden_dims),
+                                         nn.Tanh(),
+                                         nn.Linear(hidden_dims, hidden_dims),
+                                         nn.Tanh(),
+                                         nn.Linear(hidden_dims, hidden_dims),
+                                         nn.Tanh(),
+                                         nn.Linear(hidden_dims, input_dims))
+        encoder_net_latent = nn.Sequential(nn.Linear(latent_dims, latent_hidden_dims),
+                                        nn.Tanh(),
+                                        nn.Linear(latent_hidden_dims, latent_hidden_dims),
+                                        nn.Tanh(),
+                                        nn.Linear(latent_hidden_dims, latent_hidden_dims),
+                                        nn.Tanh(),
+                                        nn.Linear(latent_hidden_dims, latent_dims))
+        
+        self.encoder_net = nn.Sequential(NeuralODEWrapper(encoder_net_data,
+                                         **ode_solver_args),
+                                         Projection1D(input_dims, latent_dims),
+                                         NeuralODEWrapper(encoder_net_latent, 
+                                         **ode_solver_args))
+
+        decoder_net_data = nn.Sequential(nn.Linear(input_dims, hidden_dims),
+                                         nn.Tanh(),
+                                         nn.Linear(hidden_dims, hidden_dims),
+                                         nn.Tanh(),
+                                         nn.Linear(hidden_dims, hidden_dims),
+                                         nn.Tanh(),
+                                         nn.Linear(hidden_dims, input_dims))
+        decoder_net_latent = nn.Sequential(nn.Linear(latent_dims, latent_hidden_dims),
+                                        nn.Tanh(),
+                                        nn.Linear(latent_hidden_dims, latent_hidden_dims),
+                                        nn.Tanh(),
+                                        nn.Linear(latent_hidden_dims, latent_hidden_dims),
+                                        nn.Tanh(),
+                                        nn.Linear(latent_hidden_dims, latent_dims))
+        
+        self.decoder_net = nn.Sequential(NeuralODEWrapper(decoder_net_latent,
+                                         **ode_solver_args),
+                                         Projection1D(latent_dims, input_dims),
+                                         NeuralODEWrapper(decoder_net_data, 
+                                         **ode_solver_args))
+            
+    def encoder(self, x):
+        return self.encoder_net(x)
+    
+    def decoder(self, x):
+        return self.decoder_net(x)
+        
     
 
 class CNFAutoEncoderSCurve(nn.Module):
