@@ -53,7 +53,7 @@ if __name__ == '__main__':
                        dataloader_args=dataloader_args,
                        learner_args={},
                        model_args=AELinearModel_args,                   
-                       group_name='Test_Run_AE',
+                       group_name=None,
                        ask_notes=False)]
     
     exps_analysis = [[wandb_3d_point_cloud]]
@@ -69,7 +69,7 @@ if __name__ == '__main__':
                          dataloader_args=dataloader_args,
                          learner_args=VAELearner_args,
                          model_args=VAELinearModel_args,
-                         group_name='Test_Run_VAE',
+                         group_name=None,
                          ask_notes=False)]
     exps_analysis = [[wandb_3d_point_cloud]]
       

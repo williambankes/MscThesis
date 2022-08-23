@@ -158,7 +158,7 @@ class VAELearner(pl.LightningModule):
 
         loss = log_pz + log_pxz - log_qzx
             
-        return loss.mean()
+        return -loss.mean()
         
     def training_step(self, batch, batch_idx):
         
@@ -172,7 +172,10 @@ class VAELearner(pl.LightningModule):
     
     def test_step(self, batch, batch_idx):
         
-        loss = self.calc_variational_bound(batch, batch_idx)
+        encoded = self.model.encoder(batch)[0]
+        decoded = self.model.decoder(encoded)[0]
+
+        loss = nn.MSELoss()(decoded, batch)
         
         wandb.log({'test loss':loss.detach().item()})
         self.log("test_loss", loss)
