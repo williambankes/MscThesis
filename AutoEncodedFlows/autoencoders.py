@@ -21,7 +21,7 @@ if __name__ == '__main__':
     from AutoEncodedFlows.datasets import SCurveDataset
     from AutoEncodedFlows.utils.experiments import Experiment, ExperimentRunner
     from AutoEncodedFlows.utils.wandb_analysis import wandb_3d_point_cloud
-    from AutoEncodedFlows.models import AENODEModel
+    from AutoEncodedFlows.models.models import AENODEModel
     
     #Setup AutoEncoder Baseline
     
@@ -76,7 +76,7 @@ if __name__ == '__main__':
     exps_analysis = [[wandb_3d_point_cloud]]
     
     node_exp = [Experiment(project='AutoEncodingFlowsSimple',
-                         learner=VAELearner,
+                         learner=AELearner,
                          model=AENODEModel,
                          train_dataset=SCurveDataset,
                          train_dataset_args=scurve_train_dataset_args,
@@ -84,7 +84,7 @@ if __name__ == '__main__':
                          test_dataset_args=scurve_test_dataset_args,
                          trainer_args=trainer_args,
                          dataloader_args=dataloader_args,
-                         learner_args=AENODEModel_args,
+                         learner_args={},
                          model_args=AENODEModel_args,
                          group_name=None,
                          ask_notes=False)]

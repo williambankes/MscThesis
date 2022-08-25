@@ -6,10 +6,10 @@ Created on Thu Jun 23 14:02:07 2022
 """
 import torch
 import torch.nn as nn
-from torchdyn.nn   import DepthCat
+from torchdyn.nn import DepthCat
 
-from AutoEncodedFlows.modules import NeuralODEWrapper, Projection1D
-from AutoEncodedFlows.modules import SequentialFlow
+from AutoEncodedFlows.models.modules import NeuralODEWrapper, Projection1D
+from AutoEncodedFlows.models.modules import SequentialFlow
 
 class GradientNetwork(nn.Module):
     
