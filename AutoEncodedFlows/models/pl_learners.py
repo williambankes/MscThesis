@@ -14,7 +14,7 @@ from torch.distributions import Normal
 
 class AELearner(pl.LightningModule):
     
-    def __init__(self, model:nn.Module):
+    def __init__(self, model:nn.Module, target=False):
         """
         Trainer module for Autoencoder models. Gradient updates defined by the
         reconstruction loss between the encoder and decoder models
@@ -33,6 +33,7 @@ class AELearner(pl.LightningModule):
         super().__init__()
         self.__name__ = 'AELearner'
         self.model = model
+        self.target=target
         wandb.watch(model)
         
     def encode(self, x):
@@ -45,12 +46,15 @@ class AELearner(pl.LightningModule):
         return self.model.decoder(self.model.encoder(x))
 
     def training_step(self, batch, batch_idx):
-                                       
-        encoded = self.model.encoder(batch)
+
+        if self.target: X = batch[0]            
+        else:           X = batch
+                       
+        encoded = self.model.encoder(X)
         decoded = self.model.decoder(encoded)
         
         #reconstruction loss:
-        loss = nn.MSELoss()(decoded, batch)
+        loss = nn.MSELoss()(decoded, X)
         
         #Log and return metrics:
         wandb.log({'training loss': loss.detach().item()})
@@ -61,10 +65,13 @@ class AELearner(pl.LightningModule):
     
     def test_step(self, batch, batch_idx):
         
-        encoded = self.model.encoder(batch)
+        if self.target: X = batch[0]            
+        else:           X = batch
+                
+        encoded = self.model.encoder(X)
         decoded = self.model.decoder(encoded)
         
-        loss = nn.MSELoss()(decoded, batch)
+        loss = nn.MSELoss()(decoded, X)
         
         wandb.log({'test loss':loss.detach().item()})
         self.log("test_loss", loss)
@@ -75,7 +82,7 @@ class AELearner(pl.LightningModule):
     
 class VAELearner(pl.LightningModule):
     
-    def __init__(self, model:nn.Module, latent_dims, input_dims):
+    def __init__(self, model:nn.Module, latent_dims, input_dims, target):
         """
         Pytorch Learner for Variational AutoEncoder model. Encoder and Decoder
         architectures should return torch.dist objects. Dimensions of the output
@@ -100,6 +107,7 @@ class VAELearner(pl.LightningModule):
         
         self.__name__ = 'VAELearner' 
         self.dev = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        self.target=target
         
         #Create Jacobian noise dist and base dist:
         mean = torch.zeros(latent_dims).to(self.dev)
@@ -131,8 +139,11 @@ class VAELearner(pl.LightningModule):
         
     def calc_variational_bound(self, batch, batch_idx):
         
+        if self.target: X = batch[0]            
+        else:           X = batch
+        
         #Encode, sample and Deocde sample:
-        qzx_mean, qzx_cov = self.model.encoder(batch)
+        qzx_mean, qzx_cov = self.model.encoder(X)
         qzx_dist = Normal(qzx_mean, qzx_cov)
         
         z = qzx_dist.rsample()
@@ -144,17 +155,13 @@ class VAELearner(pl.LightningModule):
             
             log_qzx = torch.sum(qzx_dist.log_prob(z), axis=1)
             log_pz  = torch.sum(self.prior.log_prob(z), axis=1)
-            log_pxz = torch.sum(pxz_dist.log_prob(batch), axis=[1,2,3])
-                                   
-            print('log_qzx', log_qzx.shape)
-            print('log_pz',  log_pz.shape)
-            print('log_pxz', log_pxz.shape)
-            
+            log_pxz = torch.sum(pxz_dist.log_prob(X), axis=[1,2,3])
+                                               
         else:
             
             log_qzx = torch.sum(qzx_dist.log_prob(z), axis=1)
             log_pz = torch.sum(self.prior.log_prob(z), axis=1)
-            log_pxz = torch.sum(pxz_dist.log_prob(batch), axis=1)
+            log_pxz = torch.sum(pxz_dist.log_prob(X), axis=1)
 
         loss = log_pz + log_pxz - log_qzx
             
