@@ -6,9 +6,7 @@ Created on Thu Aug 25 13:50:22 2022
 """
 
 import pytorch_lightning as pl
-
 import wandb
-
 import torch
 import torch.nn as nn
 
@@ -17,16 +15,16 @@ import torch.nn as nn
 if __name__ == '__main__':
     
     from AutoEncodedFlows.models.baseline_models import VAEConvModel, AEConvModel
+    from AutoEncodedFlows.models.models import AENODEConvModel
     from AutoEncodedFlows.models.pl_learners import AELearner, VAELearner
     from AutoEncodedFlows.utils.experiments import Experiment, ExperimentRunner
-    from AutoEncodedFlows.utils.wandb_analysis import wandb_3d_point_cloud
     from torchvision.datasets import FashionMNIST
     from torchvision import transforms
         
     #Setup AutoEncoder Baseline
     trainer_args = {'gpus':1 if torch.cuda.is_available() else 0,
-                    'min_epochs':200,
-                    'max_epochs':200,
+                    'min_epochs':100,
+                    'max_epochs':100,
                     'enable_checkpointing':False}
 
     fmnist_train_dataset_args = {'root':'../',
@@ -75,22 +73,22 @@ if __name__ == '__main__':
                        ask_notes=False)]
     
     node_exps = [Experiment(project='AutoEncodingFlowsSimple',
-                       learner=VAELearner,
-                       model=VAEConvModel,
+                       learner=AELearner,
+                       model=AENODEConvModel,
                        train_dataset=FashionMNIST,
                        train_dataset_args=fmnist_train_dataset_args,
                        test_dataset=FashionMNIST,
                        test_dataset_args=fmnist_test_dataset_args,
                        trainer_args=trainer_args,
                        dataloader_args=dataloader_args,
-                       learner_args=VAElearner_args,
+                       learner_args={'target':True},
                        model_args=AEConvModel_args,                   
                        group_name=None,
                        ask_notes=False)]
-    
-    
+        
           
-    exps = exps*10
-    exps.extend(vae_exps*10)
+    exps = exps*1
+    exps.extend(vae_exps*1)
+    exps.extend(node_exps*1)
     
-    ExperimentRunner.run_experiments(vae_exps, [[wandb_3d_point_cloud]]*20)
+    ExperimentRunner.run_experiments(exps)

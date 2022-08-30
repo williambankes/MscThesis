@@ -16,7 +16,7 @@ import torch.utils.data as data
 class ExperimentRunner:
     
     @staticmethod
-    def run_experiments(exp_list, exp_analysis_list):
+    def run_experiments(exp_list, exp_analysis_list=None):
         """
         Run a set of experiments and their analysis functions in a batch
         run.
@@ -36,9 +36,9 @@ class ExperimentRunner:
         None.
 
         """
-        
-        assert len(exp_list) == len(exp_analysis_list),\
-            'Experiment must have wandb_analysis'
+        if exp_analysis_list is not None:
+            assert len(exp_list) == len(exp_analysis_list),\
+                'Experiment must have wandb_analysis'
         
         for i, exp in enumerate(exp_list):
                 
@@ -47,8 +47,10 @@ class ExperimentRunner:
                 #Experiment name as number
                 exp.setup_run(experiment_name='{}'.format(i))
                 exp.run()
-                with torch.no_grad():
-                    exp.wandb_analyse(exp_analysis_list[i])
+                
+                if exp_analysis_list is not None:
+                    with torch.no_grad():
+                        exp.wandb_analyse(exp_analysis_list[i])
             finally:
                 exp.finish()
                          

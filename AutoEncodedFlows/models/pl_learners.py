@@ -179,10 +179,13 @@ class VAELearner(pl.LightningModule):
     
     def test_step(self, batch, batch_idx):
         
-        encoded = self.model.encoder(batch)[0]
+        if self.target: X = batch[0]            
+        else:           X = batch
+        
+        encoded = self.model.encoder(X)[0]
         decoded = self.model.decoder(encoded)[0]
 
-        loss = nn.MSELoss()(decoded, batch)
+        loss = nn.MSELoss()(decoded, X)
         
         wandb.log({'test loss':loss.detach().item()})
         self.log("test_loss", loss)
