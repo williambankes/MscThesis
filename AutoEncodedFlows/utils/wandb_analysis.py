@@ -8,6 +8,8 @@ Created on Tue Jul 12 17:18:20 2022
 
 import wandb
 import torch
+import numpy as np
+from torchvision.utils import make_grid
 
 def wandb_3d_point_cloud(model, dataloader):
     """
@@ -38,6 +40,37 @@ def wandb_3d_point_cloud(model, dataloader):
     return {'data points': wandb.Object3D(data_points),
             'reconstruction': wandb.Object3D(recon_points)}
 
+def wandb_image_reconstruction(model, dataloader):
+    """
+    Logs reconstruction of 25 test images sampled from the dataloader by the model
+
+    Parameters
+    ----------
+    model : nn.Module/pl.LightningModule
+        module with <encode> and <decode> methods
+    dataloader : DataLoader
+        Test set Dataloader 
+
+    Returns
+    -------
+    dict
+        wandb Image logging object
+
+    """
+    #Sample 25 data points from dataloader:
+    image, label = next(iter(dataloader))
+    recon_image = model.decode(model.encode(image[:25])).detach()        
+       
+    print('recon_image shape', recon_image.shape)
+    #Create a grid of the reconstructed images 
+    grid_image = make_grid(recon_image, nrow=5).permute(1,2,0)
+    
+    #Fix typing:
+    grid_image = (255 * grid_image.numpy()).astype(np.uint)
+    
+    return {"Reconstruction": wandb.Image(grid_image)}
+    
+    
 def wandb_3d_point_cloud_scurveAE(model, dataloader):
     
     dataset = dataloader.dataset

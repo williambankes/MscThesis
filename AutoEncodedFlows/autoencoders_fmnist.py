@@ -18,13 +18,14 @@ if __name__ == '__main__':
     from AutoEncodedFlows.models.models import AENODEConvModel
     from AutoEncodedFlows.models.pl_learners import AELearner, VAELearner
     from AutoEncodedFlows.utils.experiments import Experiment, ExperimentRunner
+    from AutoEncodedFlows.utils.wandb_analysis import wandb_image_reconstruction
     from torchvision.datasets import FashionMNIST
     from torchvision import transforms
         
     #Setup AutoEncoder Baseline
     trainer_args = {'gpus':1 if torch.cuda.is_available() else 0,
-                    'min_epochs':100,
-                    'max_epochs':100,
+                    'min_epochs':2,
+                    'max_epochs':2,
                     'enable_checkpointing':False}
 
     fmnist_train_dataset_args = {'root':'../',
@@ -91,4 +92,4 @@ if __name__ == '__main__':
     exps.extend(vae_exps*1)
     exps.extend(node_exps*1)
     
-    ExperimentRunner.run_experiments(exps)
+    ExperimentRunner.run_experiments(exps, [[wandb_image_reconstruction]]*3)
