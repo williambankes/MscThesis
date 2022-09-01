@@ -265,3 +265,75 @@ class VAEConvModel(nn.Module):
         
         return mean, cov.exp()
 
+class VAEStdConvModel(nn.Module):
+    
+    def __init__(self):
+        
+        super().__init__()
+        
+        self.encoder_net = nn.Sequential(nn.Conv2d(1,4,5,
+                                                   padding=0,
+                                                   stride=2),
+                                         nn.ReLU(),
+                                         nn.Conv2d(4,16,5,
+                                                   padding=0,
+                                                   stride=1),
+                                         nn.ReLU(),
+                                         nn.Conv2d(16,32,3,
+                                                   padding=0,
+                                                   stride=1),
+                                         nn.ReLU(),
+                                         nn.Flatten(start_dim=1, end_dim=-1),
+                                         nn.Linear(1152, 10))
+        
+        self.decoder_net = nn.Sequential(nn.Linear(10,1152),
+                                         nn.ReLU(),
+                                         nn.Unflatten(-1, (32,6,6)),
+                                         nn.ConvTranspose2d(32, 16, 3),
+                                         nn.ReLU(),
+                                         nn.ConvTranspose2d(16, 4, 5),
+                                         nn.ReLU(),
+                                         nn.ConvTranspose2d(4, 1, 6,
+                                                            stride=2))
+               
+        self.encoder_mean = nn.Linear(10,10)
+        self.encoder_cov  = nn.Linear(10,10)
+        
+        self.decoder_mean = nn.Conv2d(1, 1, 5, padding=2)
+        self.decoder_cov = nn.Conv2d(1, 1, 5, padding=2)
+        
+    def encoder(self, x):
+        
+        x = self.encoder_net(x)
+        mean = self.encoder_mean(x)
+        cov = self.encoder_cov(x).exp()
+        
+        return mean, cov
+    
+    def decoder(self, x):
+        
+        x = self.decoder_net(x)
+        mean = self.decoder_mean(x)
+        cov = self.decoder_cov(x).exp()
+        
+        return mean, cov
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+    
