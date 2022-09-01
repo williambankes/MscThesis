@@ -15,7 +15,7 @@ import torch.nn as nn
 if __name__ == '__main__':
     
     from AutoEncodedFlows.models.baseline_models import VAEConvModel, AEConvModel
-    from AutoEncodedFlows.models.baseline_models import VAEStdConvModel
+    from AutoEncodedFlows.models.baseline_models import VAEStdConvModel, AEStdConvModel
     from AutoEncodedFlows.models.models import AENODEConvModel
     from AutoEncodedFlows.models.pl_learners import AELearner, VAELearner
     from AutoEncodedFlows.utils.experiments import Experiment, ExperimentRunner
@@ -25,8 +25,8 @@ if __name__ == '__main__':
         
     #Setup AutoEncoder Baseline
     trainer_args = {'gpus':1 if torch.cuda.is_available() else 0,
-                    'min_epochs':200,
-                    'max_epochs':200,
+                    'min_epochs':40,
+                    'max_epochs':40,
                     'enable_checkpointing':False}
 
     fmnist_train_dataset_args = {'root':'../',
@@ -57,6 +57,20 @@ if __name__ == '__main__':
                        dataloader_args=dataloader_args,
                        learner_args={'target':True},
                        model_args=AEConvModel_args,                   
+                       group_name=None,
+                       ask_notes=False)]
+    
+    ae_std_exps = [Experiment(project='AutoEncodingFlowsSimple',
+                       learner=AELearner,
+                       model=AEStdConvModel,
+                       train_dataset=FashionMNIST,
+                       train_dataset_args=fmnist_train_dataset_args,
+                       test_dataset=FashionMNIST,
+                       test_dataset_args=fmnist_test_dataset_args,
+                       trainer_args=trainer_args,
+                       dataloader_args=dataloader_args,
+                       learner_args={'target':True},
+                       model_args={},                   
                        group_name=None,
                        ask_notes=False)]
     
@@ -106,6 +120,6 @@ if __name__ == '__main__':
     #exps = exps*10
     #exps.extend(vae_exps*10)
     #exps.extend(node_exps*10)
-    exps = vae_std_exps
+    exps = ae_std_exps
     
     ExperimentRunner.run_experiments(exps, [[wandb_image_reconstruction]]*1)
