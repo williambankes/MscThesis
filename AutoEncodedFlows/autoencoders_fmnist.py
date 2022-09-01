@@ -24,8 +24,8 @@ if __name__ == '__main__':
         
     #Setup AutoEncoder Baseline
     trainer_args = {'gpus':1 if torch.cuda.is_available() else 0,
-                    'min_epochs':2,
-                    'max_epochs':2,
+                    'min_epochs':200,
+                    'max_epochs':200,
                     'enable_checkpointing':False}
 
     fmnist_train_dataset_args = {'root':'../',
@@ -88,8 +88,8 @@ if __name__ == '__main__':
                        ask_notes=False)]
         
           
-    exps = exps*1
-    exps.extend(vae_exps*1)
-    exps.extend(node_exps*1)
+    exps = exps*10
+    exps.extend(vae_exps*10)
+    exps.extend(node_exps*10)
     
-    ExperimentRunner.run_experiments(exps, [[wandb_image_reconstruction]]*3)
+    ExperimentRunner.run_experiments(exps, [[wandb_image_reconstruction]]*30)
