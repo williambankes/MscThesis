@@ -117,9 +117,11 @@ if __name__ == '__main__':
                        ask_notes=False)]
         
           
-    #exps = exps*10
-    #exps.extend(vae_exps*10)
-    #exps.extend(node_exps*10)
-    exps = vae_std_exps
+    exps = exps*10
+    exps.extend(vae_exps*10)
+    exps.extend(node_exps*10)
+
+    #exps = vae_std_exps*10
+    #exps.extend(ae_std_exps*10)
     
-    ExperimentRunner.run_experiments(exps, [[wandb_image_reconstruction]]*1)
+    ExperimentRunner.run_experiments(exps, [[wandb_image_reconstruction]]*len(exps))
