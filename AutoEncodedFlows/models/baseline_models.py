@@ -4,7 +4,7 @@ Created on Thu Aug 18 13:31:09 2022
 
 @author: William
 """
-
+import torch
 import torch.nn as nn
 from AutoEncodedFlows.models.modules import Projection1D
 
@@ -261,9 +261,10 @@ class VAEConvModel(nn.Module):
         
         net_output = self.decoder_net(x)
         mean = self.decoder_mean(net_output)
-        cov = self.decoder_cov(net_output)
+        #cov = self.decoder_cov(net_output)
+        cov = torch.ones_like(mean)
         
-        return mean, cov.exp()
+        return mean, cov
 
 class VAEStdConvModel(nn.Module):
     
@@ -296,11 +297,12 @@ class VAEStdConvModel(nn.Module):
                                          nn.ConvTranspose2d(4, 1, 6,
                                                             stride=2))
                
-        self.encoder_mean = nn.Linear(10,10)
-        self.encoder_cov  = nn.Linear(10,10)
+        self.encoder_mean = nn.Sequential(nn.Linear(10,10))
+        self.encoder_cov  = nn.Sequential(nn.Linear(10,10))
         
-        self.decoder_mean = nn.Conv2d(1, 1, 5, padding=2)
-        self.decoder_cov = nn.Conv2d(1, 1, 5, padding=2)
+        self.decoder_mean = nn.Sequential(nn.Conv2d(1, 1, 5, padding=2),
+                                          nn.Sigmoid())
+        self.decoder_cov = nn.Sequential(nn.Conv2d(1, 1, 5, padding=2))
         
     def encoder(self, x):
         
@@ -314,7 +316,7 @@ class VAEStdConvModel(nn.Module):
         
         x = self.decoder_net(x)
         mean = self.decoder_mean(x)
-        cov = self.decoder_cov(x).exp()
+        cov = torch.ones_like(mean)
         
         return mean, cov
     

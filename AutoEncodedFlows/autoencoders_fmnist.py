@@ -120,6 +120,6 @@ if __name__ == '__main__':
     #exps = exps*10
     #exps.extend(vae_exps*10)
     #exps.extend(node_exps*10)
-    exps = ae_std_exps
+    exps = vae_std_exps
     
     ExperimentRunner.run_experiments(exps, [[wandb_image_reconstruction]]*1)
