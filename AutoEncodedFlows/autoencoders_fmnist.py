@@ -15,6 +15,7 @@ import torch.nn as nn
 if __name__ == '__main__':
     
     from AutoEncodedFlows.models.baseline_models import VAEConvModel, AEConvModel
+    from AutoEncodedFlows.models.baseline_models import VAEStdConvModel
     from AutoEncodedFlows.models.models import AENODEConvModel
     from AutoEncodedFlows.models.pl_learners import AELearner, VAELearner
     from AutoEncodedFlows.utils.experiments import Experiment, ExperimentRunner
@@ -73,6 +74,20 @@ if __name__ == '__main__':
                        group_name=None,
                        ask_notes=False)]
     
+    vae_std_exps = [Experiment(project='AutoEncodingFlowsSimple',
+                       learner=VAELearner,
+                       model=VAEStdConvModel,
+                       train_dataset=FashionMNIST,
+                       train_dataset_args=fmnist_train_dataset_args,
+                       test_dataset=FashionMNIST,
+                       test_dataset_args=fmnist_test_dataset_args,
+                       trainer_args=trainer_args,
+                       dataloader_args=dataloader_args,
+                       learner_args=VAElearner_args,
+                       model_args={},                   
+                       group_name=None,
+                       ask_notes=False)]
+    
     node_exps = [Experiment(project='AutoEncodingFlowsSimple',
                        learner=AELearner,
                        model=AENODEConvModel,
@@ -91,6 +106,6 @@ if __name__ == '__main__':
     #exps = exps*10
     #exps.extend(vae_exps*10)
     #exps.extend(node_exps*10)
-    exps = vae_exps
+    exps = vae_std_exps
     
     ExperimentRunner.run_experiments(exps, [[wandb_image_reconstruction]]*1)
