@@ -8,6 +8,7 @@ Created on Tue Jul 12 17:18:20 2022
 
 import wandb
 import torch
+from torch.distributions import MultivariateNormal
 import numpy as np
 from torchvision.utils import make_grid
 
@@ -125,3 +126,25 @@ def wandb_manifold1D_scatter_plot(model, dataloader):
     #Create wandb log from data:
     table = wandb.Table(data=output, columns=['x', 'y'])
     return {"test graph" : wandb.plot.scatter(table, 'x', 'y', title="CNF Transform")}
+
+def wandb_manifold1D_sample_scatter_plot(model, dataloader):
+    
+    torch.cuda.empty_cache()
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    model = model.cuda() if torch.cuda.is_available() else model
+
+    mean = torch.zeros(2).to(device)
+    cov = torch.eye(2).to(device)
+    base_dist = MultivariateNormal(mean, cov)
+    
+    samples = base_dist.sample(torch.Size([1000])).to(device)
+    
+    #utilise inverse Neural ODE layer:
+    model.model[1].t_span = torch.linspace(1, 0, 2)
+    _, data = model(samples)
+    data = data[-1,:,1:].cpu().detach().numpy()
+    
+    table = wandb.Table(data=data, columns=['x', 'y'])
+    return {"test graph" : wandb.plot.scatter(table, 'x', 'y', title="Transform Samples")}
+    
+
