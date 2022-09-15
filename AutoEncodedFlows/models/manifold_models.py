@@ -62,7 +62,7 @@ class CNFLearner(pl.LightningModule):
     def forward(self, x):
         
         #Set model time span forward:
-        self.model[1].t_span = torch.linspace(0, 1, 10)
+        #self.model[1].t_span = torch.linspace(0, 1, 10)
         return self.model(x)
     
     def training_step(self, batch, batch_idx):
