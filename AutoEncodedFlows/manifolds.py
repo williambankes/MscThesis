@@ -118,5 +118,6 @@ if __name__ == '__main__':
     exps.extend(exps3)
                       
     ExperimentRunner.run_experiments(exps,
-                    [[wandb_manifold1D_sample_scatter_plot]]*len(exps),
+                    [[wandb_manifold1D_sample_scatter_plot,
+                      manifold1D_sample_scatter_plot]]*len(exps),
                     wandb_analysis=True)
