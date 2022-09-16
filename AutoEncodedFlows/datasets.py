@@ -55,7 +55,7 @@ class SCurveDataset(data.Dataset):
     
 class TwoMoonDataset(data.Dataset):
     
-    def __init__(self, n_samples, extra_dims=0, noise=0.0):
+    def __init__(self, n_samples, extra_dims=0, noise=0.0, label=False):
         """
         Pytorch.utils.data.Dataset wrapper of sklearn Two Moons dataset.
 
@@ -73,7 +73,7 @@ class TwoMoonDataset(data.Dataset):
         None.
 
         """
-        
+        self.label = label
         self.n_samples = n_samples
         self.data, self.labels = datasets.make_moons(n_samples, noise=noise)
         self.data = torch.tensor(self.data).float()
@@ -85,7 +85,11 @@ class TwoMoonDataset(data.Dataset):
         return self.n_samples
     
     def __getitem__(self, idx):
-        return self.data[idx]
+        
+        if self.label:
+            return self.data[idx], self.labels[idx]
+        else:
+            return self.data[idx]
     
     def get_dataset(self):
         return self.data, self.labels
@@ -158,13 +162,32 @@ class Manifold1DDatasetNoise(Manifold1DDataset):
     
 if __name__ == '__main__':
     
+    import matplotlib.pyplot as plt
+    import torch.nn as nn
     from torchvision.datasets import FashionMNIST
     from torchvision import transforms
+    from torchvision.utils import make_grid
+    from torch.utils.data import DataLoader
+    from AutoEncodedFlows.models.baseline_models import VAEStdConvModel
+    from torchdyn.nn import DepthCat
     
     data = FashionMNIST('../', download=True, train=True,
                         transform=transforms.ToTensor())
     sample, target = data[0]
+    dataloader = DataLoader(data, batch_size=2)
+    sample, target = next(iter(dataloader))
     
+    print(sample.shape)
+    
+    layer = DepthCat(idx_cat=1)
+    
+    print(layer(sample))
+
+    
+    
+    
+
+    #Sample same 25 images from DataLoader
     
     """
     import matplotlib.pyplot as plt
