@@ -104,13 +104,14 @@ class CompositeFlow(nn.Module):
         self.dims = dims
         self.num = num
         self.flows = nn.ModuleList()
+        self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         
         for i in range(num):
             self.flows.append(transform(dims))
 
     def _transform(self, z, forward):
         
-        logdet = torch.zeros([z.shape[0]])
+        logdet = torch.zeros([z.shape[0]]).to(self.device)
                 
         for i in range(self.num):
         
