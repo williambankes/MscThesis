@@ -97,7 +97,7 @@ if __name__ == '__main__':
         
     data_points = list()
     
-    for _ in range(10):
+    for _ in range(1):
         
         learn = CNFLearner(vector_field, 2)
         trainer = pl.Trainer(gpus=1, min_epochs=400, max_epochs=600)
