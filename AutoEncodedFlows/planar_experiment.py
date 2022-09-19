@@ -20,7 +20,7 @@ import pytorch_lightning as pl
 import matplotlib.pyplot as plt
 
 from torch.distributions import MultivariateNormal
-from AutoEncodedFlows.datasets import TwoMoonDataset
+from AutoEncodedFlows.datasets import TwoMoonDataset, Manifold1DDatasetNoise
 
 from NormalisingFlows.transforms import PlanarTransform
 from NormalisingFlows.normalising_flows import CompositeFlow
@@ -86,12 +86,15 @@ if __name__ == '__main__':
     
     trainloader = data.DataLoader(TwoMoonDataset(n_samples=1<<14, noise=0.07),
                                   batch_size=1024, shuffle=True)
+    
+    trainloader = data.DataLoader(Manifold1DDatasetNoise(n_samples=1<<14, noise=0.0),
+                                  batch_size=1024, shuffle=True)
     flow_model = CompositeFlow(dims=2, transform=PlanarTransform,
                                 num=16)
         
     data_points = list()
     
-    for _ in range(1):
+    for _ in range(10):
         
         learn = PlanarLearner(flow_model, 2)
         trainer = pl.Trainer(gpus=1, min_epochs=400, max_epochs=600)
