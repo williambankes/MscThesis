@@ -83,16 +83,16 @@ if __name__ == '__main__':
     dims, hidden_dim = 2, 64
     vector_field = nn.Sequential(
                 nn.Linear(dims, hidden_dim),
-                nn.Tanh(),
+                nn.ReLU(),
                 nn.Linear(hidden_dim , hidden_dim),
-                nn.Tanh(),
+                nn.ReLU(),
                 nn.Linear(hidden_dim, hidden_dim),
-                nn.Tanh(),
+                nn.ReLU(),
                 nn.Linear(hidden_dim, hidden_dim),
-                nn.Tanh(),
+                nn.ReLU(),
                 nn.Linear(hidden_dim, dims))
     
-    trainloader = data.DataLoader(TwoMoonDataset(n_samples=1<<14, noise=0.07),
+    trainloader = data.DataLoader(TwoMoonDataset(n_samples=1<<14, noise=0.1),
                                   batch_size=1024, shuffle=True)
         
     data_points = list()
@@ -106,7 +106,7 @@ if __name__ == '__main__':
         data_points.append(learn.losses[-1].detach().numpy())
     
         torch.cuda.empty_cache()
-        del learn, trainer
+        #del learn, trainer
         
     print(np.mean(data_points))
     print(np.std(data_points))
