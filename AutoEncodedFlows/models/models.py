@@ -142,64 +142,66 @@ class AENODEConvModel(nn.Module):
         if ode_solver_args is None: ode_solver_args = {'solver':'dopri5'}
                
         
-        encoder_net_data = nn.Sequential(nn.Conv2d(in_channels=1,
-                                                       out_channels=3,
+        encoder_net_data = nn.Sequential(nn.Conv2d(in_channels=2,
+                                                       out_channels=4,
                                                        kernel_size=kernel,
                                                        padding=padding),
                                         nn.Tanh(),
-                                        nn.Conv2d(in_channels=3,
-                                                   out_channels=3,
+                                        nn.Conv2d(in_channels=4,
+                                                   out_channels=4,
                                                    kernel_size=kernel,
                                                    padding=padding),
                                         nn.Tanh(),
-                                        nn.Conv2d(in_channels=3,
-                                                  out_channels=1,
+                                        nn.Conv2d(in_channels=4,
+                                                  out_channels=2,
                                                   kernel_size=kernel,
                                                   padding=padding))
         
-        encoder_net_latent = nn.Sequential(nn.Linear(10,64),
+        encoder_net_latent = nn.Sequential(nn.Linear(128,256),
                                             nn.ReLU(),
-                                            nn.Linear(64,64),
+                                            nn.Linear(256,256),
                                             nn.ReLU(),
-                                            nn.Linear(64,64),
+                                            nn.Linear(256,256),
                                             nn.ReLU(),
-                                            nn.Linear(64,10))
+                                            nn.Linear(256,128))
         
-        self.encoder_net = nn.Sequential(NeuralODEWrapper(encoder_net_data,
+        self.encoder_net = nn.Sequential(nn.Conv2d(1,2, kernel_size=1), 
+                                         NeuralODEWrapper(encoder_net_data,
                                          **ode_solver_args),
                                          nn.Flatten(start_dim=1, end_dim=-1),
-                                         Projection1D(784, 10),
+                                         Projection1D(1568, 128),
                                          NeuralODEWrapper(encoder_net_latent, 
                                          **ode_solver_args))
                 
-        decoder_net_data = nn.Sequential(nn.Conv2d(in_channels=1,
-                                                   out_channels=3,
+        decoder_net_data = nn.Sequential(nn.Conv2d(in_channels=2,
+                                                   out_channels=4,
                                                    kernel_size=kernel,
                                                    padding=padding),
                                         nn.ReLU(),
-                                        nn.Conv2d(in_channels=3,
-                                                   out_channels=3,
+                                        nn.Conv2d(in_channels=4,
+                                                   out_channels=4,
                                                    kernel_size=kernel,
                                                    padding=padding),
                                         nn.ReLU(),
-                                        nn.Conv2d(in_channels=3,
-                                                   out_channels=1,
+                                        nn.Conv2d(in_channels=4,
+                                                   out_channels=2,
                                                    kernel_size=kernel,
                                                    padding=padding))
-        decoder_net_latent = nn.Sequential(nn.Linear(10, 64),
+        decoder_net_latent = nn.Sequential(nn.Linear(128, 256),
                                          nn.Tanh(),
-                                         nn.Linear(64, 64),
+                                         nn.Linear(256, 256),
                                          nn.Tanh(),
-                                         nn.Linear(64, 64),
+                                         nn.Linear(256, 256),
                                          nn.Tanh(),
-                                         nn.Linear(64, 10))
+                                         nn.Linear(256, 128))
         
         self.decoder_net = nn.Sequential(NeuralODEWrapper(decoder_net_latent,
                                          **ode_solver_args),
-                                         Projection1D(10, 784),
-                                         nn.Unflatten(-1, (1,28,28)),
+                                         Projection1D(128, 1568),
+                                         nn.Unflatten(-1, (2,28,28)),
                                          NeuralODEWrapper(decoder_net_data, 
-                                         **ode_solver_args))
+                                         **ode_solver_args),
+                                         nn.Conv2d(2,1,1))
          
     def encoder(self, x):
         return self.encoder_net(x)

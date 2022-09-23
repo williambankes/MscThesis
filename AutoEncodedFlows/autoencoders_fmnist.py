@@ -25,8 +25,8 @@ if __name__ == '__main__':
         
     #Setup AutoEncoder Baseline
     trainer_args = {'gpus':1 if torch.cuda.is_available() else 0,
-                    'min_epochs':40,
-                    'max_epochs':40,
+                    'min_epochs':10,
+                    'max_epochs':10,
                     'enable_checkpointing':False}
 
     fmnist_train_dataset_args = {'root':'../',
@@ -37,7 +37,9 @@ if __name__ == '__main__':
                                 'download':True,
                                 'train':False,
                                 'transform':transforms.ToTensor()}
-    AEConvModel_args = {'kernel':5}
+    AEConvModel_args = {'kernel':5,
+                        'latent_dims':64,
+                        'hidden_latent_dims':256}
     VAEConvModel_args = AEConvModel_args
     VAElearner_args = {'latent_dims':10, 
                        'input_dims':[1,28,28],
@@ -112,14 +114,14 @@ if __name__ == '__main__':
                        trainer_args=trainer_args,
                        dataloader_args=dataloader_args,
                        learner_args={'target':True},
-                       model_args=AEConvModel_args,                   
+                       model_args={'kernel':5},                   
                        group_name=None,
                        ask_notes=False)]
         
-          
-    exps = exps*10
-    exps.extend(vae_exps*10)
-    exps.extend(node_exps*10)
+        
+    exps = node_exps*1
+    #exps.extend(vae_exps*10)
+    #exps.extend(node_exps*10)
 
     #exps = vae_std_exps*10
     #exps.extend(ae_std_exps*10)
