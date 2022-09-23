@@ -87,7 +87,7 @@ if __name__ == '__main__':
     trainloader = data.DataLoader(TwoMoonDataset(n_samples=1<<14, noise=0.07),
                                   batch_size=1024, shuffle=True)
     
-    trainloader = data.DataLoader(Manifold1DDatasetNoise(n_samples=1<<14, noise=0.0),
+    trainloader = data.DataLoader(Manifold1DDatasetNoise(n_samples=1<<14, noise=0.07),
                                   batch_size=1024, shuffle=True)
     flow_model = CompositeFlow(dims=2, transform=PlanarTransform,
                                 num=16)

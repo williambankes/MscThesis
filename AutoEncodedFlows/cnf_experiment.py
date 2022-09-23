@@ -43,7 +43,8 @@ class CNFLearner(pl.LightningModule):
         self.iters = 0
         self.dims = dims
         
-        ode_solver_args = {'solver':'tsit5'}
+        ode_solver_args = {'solver':'tsit5',
+                           'sensitivity':'adjoint'}
         
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         
@@ -97,8 +98,10 @@ if __name__ == '__main__':
         
     data_points = list()
     
-    for _ in range(1):
+    for i in range(5):
         
+        print('Beginning exp {}'.format(i))
+
         learn = CNFLearner(vector_field, 2)
         trainer = pl.Trainer(gpus=1, min_epochs=400, max_epochs=600)
         trainer.fit(learn, train_dataloaders=trainloader)
@@ -106,7 +109,7 @@ if __name__ == '__main__':
         data_points.append(learn.losses[-1].detach().numpy())
     
         torch.cuda.empty_cache()
-        #del learn, trainer
+        del learn, trainer
         
     print(np.mean(data_points))
     print(np.std(data_points))
