@@ -119,7 +119,7 @@ if __name__ == '__main__':
                        ask_notes=False)]
         
         
-    exps = node_exps*1
+    exps = node_exps*10
     #exps.extend(vae_exps*10)
     #exps.extend(node_exps*10)
 
