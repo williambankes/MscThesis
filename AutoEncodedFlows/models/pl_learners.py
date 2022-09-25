@@ -10,11 +10,13 @@ import wandb
 import pytorch_lightning as pl
 import torch.nn as nn
 
+from AutoEncodedFlows.models.utils.fid_score import fid_scorer
+
 from torch.distributions import Normal
 
 class AELearner(pl.LightningModule):
     
-    def __init__(self, model:nn.Module, target=False):
+    def __init__(self, model:nn.Module, target=False, fid_score_test=False):
         """
         Trainer module for Autoencoder models. Gradient updates defined by the
         reconstruction loss between the encoder and decoder models
@@ -34,6 +36,8 @@ class AELearner(pl.LightningModule):
         self.__name__ = 'AELearner'
         self.model = model
         self.target=target
+        self.fid_score_test=fid_score_test
+        self.fid_scorer = fid_scorer()
         wandb.watch(model)
         
     def encode(self, x):
@@ -71,10 +75,15 @@ class AELearner(pl.LightningModule):
         encoded = self.model.encoder(X)
         decoded = self.model.decoder(encoded)
         
-        loss = nn.MSELoss()(decoded, X)
+        if self.fid_score_test:
+            loss = self.fid_scorer.score(X, decoded)
+            loss_name = 'fid test loss'
+        else:
+            loss = nn.MSELoss()(decoded, X).detach().item()
+            loss_name = 'MSE test loss'
         
-        wandb.log({'test loss':loss.detach().item()})
-        self.log("test_loss", loss)
+        wandb.log({loss_name:loss})
+        self.log(loss_name, loss)
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.model.parameters(), lr=0.001)
@@ -193,7 +202,3 @@ class VAELearner(pl.LightningModule):
     def configure_optimizers(self):
         return torch.optim.Adam(self.model.parameters(), lr=0.001)
         
-    
-    
-    
-    
