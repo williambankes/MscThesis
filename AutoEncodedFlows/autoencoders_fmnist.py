@@ -25,8 +25,8 @@ if __name__ == '__main__':
         
     #Setup AutoEncoder Baseline
     trainer_args = {'gpus':1 if torch.cuda.is_available() else 0,
-                    'min_epochs':10,
-                    'max_epochs':10,
+                    'min_epochs':100,
+                    'max_epochs':100,
                     'enable_checkpointing':False}
 
     fmnist_train_dataset_args = {'root':'../',
@@ -41,27 +41,16 @@ if __name__ == '__main__':
                         'latent_dims':64,
                         'hidden_latent_dims':256}
     VAEConvModel_args = AEConvModel_args
+    AElearner_args = {'target':True,
+                      'fid_score_test':True}
     VAElearner_args = {'latent_dims':10, 
                        'input_dims':[1,28,28],
-                       'target':True}
+                       'target':True,
+                       'fid_score_test':True}
     dataloader_args = {'batch_size':256,
                        'shuffle':True}
     
-    
-    exps = [Experiment(project='AutoEncodingFlowsSimple',
-                       learner=AELearner,
-                       model=AEConvModel,
-                       train_dataset=FashionMNIST,
-                       train_dataset_args=fmnist_train_dataset_args,
-                       test_dataset=FashionMNIST,
-                       test_dataset_args=fmnist_test_dataset_args,
-                       trainer_args=trainer_args,
-                       dataloader_args=dataloader_args,
-                       learner_args={'target':True},
-                       model_args=AEConvModel_args,                   
-                       group_name=None,
-                       ask_notes=False)]
-    
+        
     ae_std_exps = [Experiment(project='AutoEncodingFlowsSimple',
                        learner=AELearner,
                        model=AEStdConvModel,
@@ -71,25 +60,11 @@ if __name__ == '__main__':
                        test_dataset_args=fmnist_test_dataset_args,
                        trainer_args=trainer_args,
                        dataloader_args=dataloader_args,
-                       learner_args={'target':True},
+                       learner_args=AElearner_args,
                        model_args={},                   
                        group_name=None,
                        ask_notes=False)]
-    
-    vae_exps = [Experiment(project='AutoEncodingFlowsSimple',
-                       learner=VAELearner,
-                       model=VAEConvModel,
-                       train_dataset=FashionMNIST,
-                       train_dataset_args=fmnist_train_dataset_args,
-                       test_dataset=FashionMNIST,
-                       test_dataset_args=fmnist_test_dataset_args,
-                       trainer_args=trainer_args,
-                       dataloader_args=dataloader_args,
-                       learner_args=VAElearner_args,
-                       model_args=AEConvModel_args,                   
-                       group_name=None,
-                       ask_notes=False)]
-    
+        
     vae_std_exps = [Experiment(project='AutoEncodingFlowsSimple',
                        learner=VAELearner,
                        model=VAEStdConvModel,
@@ -104,7 +79,7 @@ if __name__ == '__main__':
                        group_name=None,
                        ask_notes=False)]
     
-    node_exps = [Experiment(project='AutoEncodingFlowsSimple',
+    node_ae_exps = [Experiment(project='AutoEncodingFlowsSimple',
                        learner=AELearner,
                        model=AENODEConvModel,
                        train_dataset=FashionMNIST,
@@ -117,13 +92,31 @@ if __name__ == '__main__':
                        model_args={'kernel':5},                   
                        group_name=None,
                        ask_notes=False)]
+    
+    node_vae_exps = [Experiment(project='AutoEncodingFlowsSimple',
+                       learner=AELearner,
+                       model=AENODEConvModel,
+                       train_dataset=FashionMNIST,
+                       train_dataset_args=fmnist_train_dataset_args,
+                       test_dataset=FashionMNIST,
+                       test_dataset_args=fmnist_test_dataset_args,
+                       trainer_args=trainer_args,
+                       dataloader_args=dataloader_args,
+                       learner_args={'target':True},
+                       model_args={'kernel':5},                   
+                       group_name=None,
+                       ask_notes=False)]
+   
+    #ae std with fid loss
+    #vae std with fid loss
+    #node with aug ae loss
+    #node with aug vae loss
+    #node without aug ae loss 
+    #node without aug reduced    
         
-        
-    exps = node_exps*10
-    #exps.extend(vae_exps*10)
-    #exps.extend(node_exps*10)
-
-    #exps = vae_std_exps*10
-    #exps.extend(ae_std_exps*10)
+    exps = ae_std_exps*10
+    exps.extend(vae_std_exps*10)
+    #exps.extend(node_ae_exps*10)
+    #exps.extend(node_vae_exps*10)
     
     ExperimentRunner.run_experiments(exps, [[wandb_image_reconstruction]]*len(exps))
