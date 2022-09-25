@@ -91,7 +91,8 @@ class AELearner(pl.LightningModule):
     
 class VAELearner(pl.LightningModule):
     
-    def __init__(self, model:nn.Module, latent_dims, input_dims, target):
+    def __init__(self, model:nn.Module, latent_dims,
+                 input_dims, target, fid_score_test):
         """
         Pytorch Learner for Variational AutoEncoder model. Encoder and Decoder
         architectures should return torch.dist objects. Dimensions of the output
@@ -117,6 +118,9 @@ class VAELearner(pl.LightningModule):
         self.__name__ = 'VAELearner' 
         self.dev = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         self.target=target
+        
+        self.fid_score_test=fid_score_test
+        self.fid_scorer = fid_scorer()
         
         #Create Jacobian noise dist and base dist:
         mean = torch.zeros(latent_dims).to(self.dev)
@@ -194,10 +198,15 @@ class VAELearner(pl.LightningModule):
         encoded = self.model.encoder(X)[0]
         decoded = self.model.decoder(encoded)[0]
 
-        loss = nn.MSELoss()(decoded, X)
+        if self.fid_score_test:
+            loss = self.fid_scorer.score(X, decoded)
+            loss_name = 'fid test loss'
+        else:
+            loss = nn.MSELoss()(decoded, X).detach().item()
+            loss_name = 'MSE test loss'
         
-        wandb.log({'test loss':loss.detach().item()})
-        self.log("test_loss", loss)
+        wandb.log({loss_name:loss})
+        self.log(loss_name, loss)
                
     def configure_optimizers(self):
         return torch.optim.Adam(self.model.parameters(), lr=0.001)

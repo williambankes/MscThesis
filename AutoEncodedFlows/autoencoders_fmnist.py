@@ -14,9 +14,9 @@ import torch.nn as nn
 
 if __name__ == '__main__':
     
-    from AutoEncodedFlows.models.baseline_models import VAEConvModel, AEConvModel
     from AutoEncodedFlows.models.baseline_models import VAEStdConvModel, AEStdConvModel
-    from AutoEncodedFlows.models.models import AENODEConvModel
+    from AutoEncodedFlows.models.fmnist_models import AENODEConvModel, AENODEAugConvModel
+    from AutoEncodedFlows.models.fmnist_models import VAENODEAugConvModel
     from AutoEncodedFlows.models.pl_learners import AELearner, VAELearner
     from AutoEncodedFlows.utils.experiments import Experiment, ExperimentRunner
     from AutoEncodedFlows.utils.wandb_analysis import wandb_image_reconstruction
@@ -26,7 +26,7 @@ if __name__ == '__main__':
     #Setup AutoEncoder Baseline
     trainer_args = {'gpus':1 if torch.cuda.is_available() else 0,
                     'min_epochs':100,
-                    'max_epochs':100,
+                    'max_epochs':1,
                     'enable_checkpointing':False}
 
     fmnist_train_dataset_args = {'root':'../',
@@ -47,7 +47,7 @@ if __name__ == '__main__':
                        'input_dims':[1,28,28],
                        'target':True,
                        'fid_score_test':True}
-    dataloader_args = {'batch_size':256,
+    dataloader_args = {'batch_size':10,
                        'shuffle':True}
     
         
@@ -81,41 +81,41 @@ if __name__ == '__main__':
     
     node_ae_exps = [Experiment(project='AutoEncodingFlowsSimple',
                        learner=AELearner,
-                       model=AENODEConvModel,
+                       model=AENODEAugConvModel,
                        train_dataset=FashionMNIST,
                        train_dataset_args=fmnist_train_dataset_args,
                        test_dataset=FashionMNIST,
                        test_dataset_args=fmnist_test_dataset_args,
                        trainer_args=trainer_args,
                        dataloader_args=dataloader_args,
-                       learner_args={'target':True},
+                       learner_args=AElearner_args,
                        model_args={'kernel':5},                   
                        group_name=None,
                        ask_notes=False)]
     
     node_vae_exps = [Experiment(project='AutoEncodingFlowsSimple',
-                       learner=AELearner,
-                       model=AENODEConvModel,
+                       learner=VAELearner,
+                       model=VAENODEAugConvModel,
                        train_dataset=FashionMNIST,
                        train_dataset_args=fmnist_train_dataset_args,
                        test_dataset=FashionMNIST,
                        test_dataset_args=fmnist_test_dataset_args,
                        trainer_args=trainer_args,
                        dataloader_args=dataloader_args,
-                       learner_args={'target':True},
+                       learner_args=VAElearner_args,
                        model_args={'kernel':5},                   
                        group_name=None,
                        ask_notes=False)]
    
-    #ae std with fid loss
-    #vae std with fid loss
-    #node with aug ae loss
-    #node with aug vae loss
+    #ae std with fid loss - running
+    #vae std with fid loss - running 
+    #node with aug ae loss - setup/test
+    #node with aug vae loss - setup/test
     #node without aug ae loss 
     #node without aug reduced    
         
-    exps = ae_std_exps*10
-    exps.extend(vae_std_exps*10)
+    exps = vae_std_exps*1
+    #exps.extend(vae_std_exps*10)    
     #exps.extend(node_ae_exps*10)
     #exps.extend(node_vae_exps*10)
     

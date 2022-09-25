@@ -119,6 +119,7 @@ class fid_scorer:
 
 if __name__ == '__main__':
     
+    import matplotlib.pyplot as plt
     from torchvision.datasets import FashionMNIST
     
     scorer = fid_scorer()
@@ -132,3 +133,6 @@ if __name__ == '__main__':
     
     print('real vs real', output)
     print('real vs noisy', output2)
+    
+    noise_image = real_sample[0] + torch.randn([1,28,28])
+    plt.imshow(noise_image.reshape(28,28,1).numpy())
