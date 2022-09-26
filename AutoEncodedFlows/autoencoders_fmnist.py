@@ -26,7 +26,7 @@ if __name__ == '__main__':
     #Setup AutoEncoder Baseline
     trainer_args = {'gpus':1 if torch.cuda.is_available() else 0,
                     'min_epochs':100,
-                    'max_epochs':100,
+                    'max_epochs':1,
                     'enable_checkpointing':False}
 
     fmnist_train_dataset_args = {'root':'../',
@@ -46,6 +46,10 @@ if __name__ == '__main__':
     VAElearner_args = {'latent_dims':10, 
                        'input_dims':[1,28,28],
                        'target':True,
+                       'fid_score_test':True}
+    VAENODElearner_args = {'latent_dims':128, 
+                           'input_dims':[1,28,28],
+                           'target':True,
                        'fid_score_test':True}
     dataloader_args = {'batch_size':256,
                        'shuffle':True}
@@ -102,7 +106,7 @@ if __name__ == '__main__':
                        test_dataset_args=fmnist_test_dataset_args,
                        trainer_args=trainer_args,
                        dataloader_args=dataloader_args,
-                       learner_args=VAElearner_args,
+                       learner_args=VAENODElearner_args,
                        model_args={'kernel':5},                   
                        group_name=None,
                        ask_notes=False)]
@@ -114,8 +118,8 @@ if __name__ == '__main__':
     #node without aug ae loss 
     #node without aug reduced    
         
-    exps = vae_std_exps*10
-    #exps.extend(vae_std_exps*10)    
+    exps = node_ae_exps*1
+    exps.extend(node_vae_exps*1)    
     #exps.extend(node_ae_exps*10)
     #exps.extend(node_vae_exps*10)
     
