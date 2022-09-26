@@ -26,7 +26,7 @@ if __name__ == '__main__':
     #Setup AutoEncoder Baseline
     trainer_args = {'gpus':1 if torch.cuda.is_available() else 0,
                     'min_epochs':100,
-                    'max_epochs':1,
+                    'max_epochs':100,
                     'enable_checkpointing':False}
 
     fmnist_train_dataset_args = {'root':'../',
@@ -47,7 +47,7 @@ if __name__ == '__main__':
                        'input_dims':[1,28,28],
                        'target':True,
                        'fid_score_test':True}
-    dataloader_args = {'batch_size':10,
+    dataloader_args = {'batch_size':256,
                        'shuffle':True}
     
         
@@ -114,7 +114,7 @@ if __name__ == '__main__':
     #node without aug ae loss 
     #node without aug reduced    
         
-    exps = vae_std_exps*1
+    exps = vae_std_exps*10
     #exps.extend(vae_std_exps*10)    
     #exps.extend(node_ae_exps*10)
     #exps.extend(node_vae_exps*10)
