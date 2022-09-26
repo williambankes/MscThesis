@@ -165,7 +165,7 @@ class AENODEAugConvModel(nn.Module):
                                          nn.Conv2d(2,1,1))
          
     def encoder(self, x):
-        return self.encoder_net(x), 
+        return self.encoder_net(x)
  
     def decoder(self, x):
         return self.decoder_net(x)
@@ -318,3 +318,4 @@ class AENODEModel(nn.Module):
     
     def decoder(self, x):
         return self.decoder_net(x)
+    
